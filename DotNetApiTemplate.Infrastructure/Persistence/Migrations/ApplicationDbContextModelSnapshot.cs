@@ -343,6 +343,765 @@ namespace DotNetApiTemplate.Infrastructure.Persistence.Migrations
                     b.ToTable("AspNetUsers", (string)null);
                 });
 
+            modelBuilder.Entity("DotNetApiTemplate.Infrastructure.LoveBrackley.AdminAuditLogEntity", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("Action")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<string>("ActorUserId")
+                        .HasMaxLength(450)
+                        .HasColumnType("nvarchar(450)");
+
+                    b.Property<string>("AfterJson")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("BeforeJson")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTimeOffset>("CreatedUtc")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<string>("EntityId")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<string>("EntityType")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<string>("Reason")
+                        .HasMaxLength(1000)
+                        .HasColumnType("nvarchar(1000)");
+
+                    b.Property<string>("Summary")
+                        .IsRequired()
+                        .HasMaxLength(1000)
+                        .HasColumnType("nvarchar(1000)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ActorUserId", "CreatedUtc");
+
+                    b.HasIndex("EntityType", "EntityId", "CreatedUtc");
+
+                    b.ToTable("AdminAuditLogs", (string)null);
+                });
+
+            modelBuilder.Entity("DotNetApiTemplate.Infrastructure.LoveBrackley.AdminReviewCaseEntity", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("AssignedToUserId")
+                        .HasMaxLength(450)
+                        .HasColumnType("nvarchar(450)");
+
+                    b.Property<Guid?>("BusinessPayoutPeriodId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid?>("BusinessProfileId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("CaseType")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<DateTimeOffset>("CreatedUtc")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<string>("Description")
+                        .IsRequired()
+                        .HasMaxLength(2000)
+                        .HasColumnType("nvarchar(2000)");
+
+                    b.Property<Guid?>("LoyaltyTransactionId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid?>("MemberProfileId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("Priority")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<string>("ResolutionNotes")
+                        .HasMaxLength(2000)
+                        .HasColumnType("nvarchar(2000)");
+
+                    b.Property<DateTimeOffset?>("ResolvedUtc")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<string>("Title")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("AssignedToUserId");
+
+                    b.HasIndex("BusinessPayoutPeriodId");
+
+                    b.HasIndex("BusinessProfileId");
+
+                    b.HasIndex("CreatedUtc");
+
+                    b.HasIndex("LoyaltyTransactionId");
+
+                    b.HasIndex("MemberProfileId");
+
+                    b.HasIndex("CaseType", "Status", "Priority");
+
+                    b.ToTable("AdminReviewCases", (string)null);
+                });
+
+            modelBuilder.Entity("DotNetApiTemplate.Infrastructure.LoveBrackley.BusinessAlertEntity", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid>("BusinessProfileId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTimeOffset>("CreatedUtc")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<string>("Message")
+                        .IsRequired()
+                        .HasMaxLength(1000)
+                        .HasColumnType("nvarchar(1000)");
+
+                    b.Property<DateTimeOffset?>("ResolvedUtc")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<string>("Title")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<string>("Tone")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("BusinessProfileId", "Status", "CreatedUtc");
+
+                    b.ToTable("BusinessAlerts", (string)null);
+                });
+
+            modelBuilder.Entity("DotNetApiTemplate.Infrastructure.LoveBrackley.BusinessLocationEntity", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("AddressLine1")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<string>("AddressLine2")
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<Guid>("BusinessProfileId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTimeOffset>("CreatedUtc")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<string>("LocationName")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<string>("Postcode")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<string>("TillReference")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<string>("Town")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<string>("TradingHoursSummary")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.Property<DateTimeOffset>("UpdatedUtc")
+                        .HasColumnType("datetimeoffset");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("BusinessProfileId");
+
+                    b.ToTable("BusinessLocations", (string)null);
+                });
+
+            modelBuilder.Entity("DotNetApiTemplate.Infrastructure.LoveBrackley.BusinessPayoutPeriodEntity", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid>("BusinessProfileId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTimeOffset>("CreatedUtc")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<decimal>("Fees")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<string>("HeldReason")
+                        .HasMaxLength(1000)
+                        .HasColumnType("nvarchar(1000)");
+
+                    b.Property<DateTimeOffset?>("PaidUtc")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<decimal>("PayoutTotal")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<DateTimeOffset>("PeriodEndUtc")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<DateTimeOffset>("PeriodStartUtc")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<decimal>("RedeemedAmount")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("BusinessProfileId", "PeriodStartUtc");
+
+                    b.HasIndex("Status", "CreatedUtc");
+
+                    b.ToTable("BusinessPayoutPeriods", null, t =>
+                        {
+                            t.HasCheckConstraint("CK_BusinessPayoutPeriods_Money_NonNegative", "[RedeemedAmount] >= 0 AND [Fees] >= 0 AND [PayoutTotal] >= 0");
+                        });
+                });
+
+            modelBuilder.Entity("DotNetApiTemplate.Infrastructure.LoveBrackley.BusinessProfileEntity", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("AddressLine1")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<string>("AddressLine2")
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<string>("BrandReference")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<string>("Category")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<string>("ContactEmail")
+                        .IsRequired()
+                        .HasMaxLength(256)
+                        .HasColumnType("nvarchar(256)");
+
+                    b.Property<DateTimeOffset>("CreatedUtc")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<string>("Description")
+                        .IsRequired()
+                        .HasMaxLength(1000)
+                        .HasColumnType("nvarchar(1000)");
+
+                    b.Property<bool>("Featured")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("LocationName")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<string>("OwnerUserId")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(450)");
+
+                    b.Property<string>("ParticipationStatus")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<string>("Postcode")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
+
+                    b.Property<string>("PrimaryContactName")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<string>("SupportEmail")
+                        .HasMaxLength(256)
+                        .HasColumnType("nvarchar(256)");
+
+                    b.Property<string>("Town")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<string>("TradingHoursSummary")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.Property<DateTimeOffset>("UpdatedUtc")
+                        .HasColumnType("datetimeoffset");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("BrandReference")
+                        .IsUnique();
+
+                    b.HasIndex("OwnerUserId");
+
+                    b.HasIndex("ParticipationStatus", "Featured");
+
+                    b.ToTable("BusinessProfiles", (string)null);
+                });
+
+            modelBuilder.Entity("DotNetApiTemplate.Infrastructure.LoveBrackley.BusinessStaffAccessEntity", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("BusinessAccessRole")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<Guid>("BusinessProfileId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTimeOffset>("CreatedUtc")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<string>("DisplayName")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<string>("LastActivitySummary")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.Property<DateTimeOffset?>("LastActivityUtc")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<string>("PinHash")
+                        .IsRequired()
+                        .HasMaxLength(256)
+                        .HasColumnType("nvarchar(256)");
+
+                    b.Property<string>("PinStatus")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<DateTimeOffset>("UpdatedUtc")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<string>("UserId")
+                        .HasMaxLength(450)
+                        .HasColumnType("nvarchar(450)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("UserId");
+
+                    b.HasIndex("BusinessProfileId", "PinStatus");
+
+                    b.ToTable("BusinessStaffAccesses", (string)null);
+                });
+
+            modelBuilder.Entity("DotNetApiTemplate.Infrastructure.LoveBrackley.LoyaltyCardEntity", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("CardCode")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<DateTimeOffset?>("DisabledUtc")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<bool>("IsPrimary")
+                        .HasColumnType("bit");
+
+                    b.Property<DateTimeOffset>("IssuedUtc")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<DateTimeOffset?>("LinkedUtc")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<Guid>("MemberProfileId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("PublicCardReference")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CardCode")
+                        .IsUnique();
+
+                    b.HasIndex("PublicCardReference")
+                        .IsUnique();
+
+                    b.HasIndex("MemberProfileId", "IsPrimary");
+
+                    b.ToTable("LoyaltyCards", (string)null);
+                });
+
+            modelBuilder.Entity("DotNetApiTemplate.Infrastructure.LoveBrackley.LoyaltyPointsRuleEntity", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("CreatedByUserId")
+                        .HasMaxLength(450)
+                        .HasColumnType("nvarchar(450)");
+
+                    b.Property<DateTimeOffset>("CreatedUtc")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<int>("EarnPointsPerPound")
+                        .HasColumnType("int");
+
+                    b.Property<DateTimeOffset>("EffectiveFromUtc")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<DateTimeOffset?>("EffectiveToUtc")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("bit");
+
+                    b.Property<decimal>("MaxRedemptionPercentage")
+                        .HasPrecision(5, 2)
+                        .HasColumnType("decimal(5,2)");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<int>("PencePerPoint")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CreatedByUserId");
+
+                    b.HasIndex("IsActive", "EffectiveFromUtc");
+
+                    b.ToTable("LoyaltyPointsRules", null, t =>
+                        {
+                            t.HasCheckConstraint("CK_LoyaltyPointsRules_Positive", "[EarnPointsPerPound] > 0 AND [PencePerPoint] > 0 AND [MaxRedemptionPercentage] > 0");
+                        });
+                });
+
+            modelBuilder.Entity("DotNetApiTemplate.Infrastructure.LoveBrackley.LoyaltyTransactionEntity", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid?>("BusinessLocationId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid>("BusinessProfileId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTimeOffset?>("CompletedUtc")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<DateTimeOffset>("CreatedUtc")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<string>("HeldReason")
+                        .HasMaxLength(1000)
+                        .HasColumnType("nvarchar(1000)");
+
+                    b.Property<Guid>("MemberProfileId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("Notes")
+                        .HasMaxLength(1000)
+                        .HasColumnType("nvarchar(1000)");
+
+                    b.Property<int>("Points")
+                        .HasColumnType("int");
+
+                    b.Property<decimal>("PurchaseAmount")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<decimal>("RedeemedValue")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<string>("Reference")
+                        .IsRequired()
+                        .HasMaxLength(80)
+                        .HasColumnType("nvarchar(80)");
+
+                    b.Property<string>("ReviewedByUserId")
+                        .HasMaxLength(450)
+                        .HasColumnType("nvarchar(450)");
+
+                    b.Property<DateTimeOffset?>("ReviewedUtc")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<Guid?>("StaffAccessId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<string>("TransactionType")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("BusinessLocationId");
+
+                    b.HasIndex("Reference")
+                        .IsUnique();
+
+                    b.HasIndex("ReviewedByUserId");
+
+                    b.HasIndex("StaffAccessId");
+
+                    b.HasIndex("BusinessProfileId", "CreatedUtc");
+
+                    b.HasIndex("MemberProfileId", "CreatedUtc");
+
+                    b.HasIndex("Status", "CreatedUtc");
+
+                    b.ToTable("LoyaltyTransactions", null, t =>
+                        {
+                            t.HasCheckConstraint("CK_LoyaltyTransactions_Money_NonNegative", "[PurchaseAmount] >= 0 AND [RedeemedValue] >= 0");
+
+                            t.HasCheckConstraint("CK_LoyaltyTransactions_Points_Positive", "[Points] > 0");
+                        });
+                });
+
+            modelBuilder.Entity("DotNetApiTemplate.Infrastructure.LoveBrackley.MemberProfileEntity", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("CardCode")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<bool>("CardReminderPreference")
+                        .HasColumnType("bit");
+
+                    b.Property<DateTimeOffset>("CreatedUtc")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<string>("DisplayName")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<string>("Email")
+                        .HasMaxLength(256)
+                        .HasColumnType("nvarchar(256)");
+
+                    b.Property<bool>("EmailUpdatesPreference")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("HomeArea")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<bool>("LocalOffersPreference")
+                        .HasColumnType("bit");
+
+                    b.Property<bool>("MarketingConsent")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("MobileNumber")
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<int>("PointsBalance")
+                        .HasColumnType("int");
+
+                    b.Property<string>("PublicMemberReference")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<DateTimeOffset>("UpdatedUtc")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<string>("UserId")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(450)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CardCode")
+                        .IsUnique();
+
+                    b.HasIndex("PublicMemberReference")
+                        .IsUnique();
+
+                    b.HasIndex("UserId")
+                        .IsUnique();
+
+                    b.ToTable("MemberProfiles", null, t =>
+                        {
+                            t.HasCheckConstraint("CK_MemberProfiles_PointsBalance_NonNegative", "[PointsBalance] >= 0");
+                        });
+                });
+
+            modelBuilder.Entity("DotNetApiTemplate.Infrastructure.LoveBrackley.SecurityAuditEntryEntity", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("ActorUserId")
+                        .HasMaxLength(450)
+                        .HasColumnType("nvarchar(450)");
+
+                    b.Property<Guid>("BusinessProfileId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTimeOffset>("CreatedUtc")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<string>("Detail")
+                        .IsRequired()
+                        .HasMaxLength(1000)
+                        .HasColumnType("nvarchar(1000)");
+
+                    b.Property<DateTimeOffset?>("EscalatedUtc")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<DateTimeOffset?>("ReviewedUtc")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<Guid?>("StaffAccessId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<string>("Title")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ActorUserId");
+
+                    b.HasIndex("StaffAccessId");
+
+                    b.HasIndex("BusinessProfileId", "CreatedUtc");
+
+                    b.ToTable("SecurityAuditEntries", (string)null);
+                });
+
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityRoleClaim<string>", b =>
                 {
                     b.Property<int>("Id")
@@ -492,6 +1251,213 @@ namespace DotNetApiTemplate.Infrastructure.Persistence.Migrations
                     b.Navigation("ParentRole");
                 });
 
+            modelBuilder.Entity("DotNetApiTemplate.Infrastructure.LoveBrackley.AdminAuditLogEntity", b =>
+                {
+                    b.HasOne("DotNetApiTemplate.Infrastructure.Identity.ApplicationUser", "ActorUser")
+                        .WithMany()
+                        .HasForeignKey("ActorUserId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.Navigation("ActorUser");
+                });
+
+            modelBuilder.Entity("DotNetApiTemplate.Infrastructure.LoveBrackley.AdminReviewCaseEntity", b =>
+                {
+                    b.HasOne("DotNetApiTemplate.Infrastructure.Identity.ApplicationUser", "AssignedToUser")
+                        .WithMany()
+                        .HasForeignKey("AssignedToUserId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("DotNetApiTemplate.Infrastructure.LoveBrackley.BusinessPayoutPeriodEntity", "BusinessPayoutPeriod")
+                        .WithMany("AdminReviewCases")
+                        .HasForeignKey("BusinessPayoutPeriodId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("DotNetApiTemplate.Infrastructure.LoveBrackley.BusinessProfileEntity", "BusinessProfile")
+                        .WithMany("AdminReviewCases")
+                        .HasForeignKey("BusinessProfileId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("DotNetApiTemplate.Infrastructure.LoveBrackley.LoyaltyTransactionEntity", "LoyaltyTransaction")
+                        .WithMany("AdminReviewCases")
+                        .HasForeignKey("LoyaltyTransactionId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("DotNetApiTemplate.Infrastructure.LoveBrackley.MemberProfileEntity", "MemberProfile")
+                        .WithMany("AdminReviewCases")
+                        .HasForeignKey("MemberProfileId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.Navigation("AssignedToUser");
+
+                    b.Navigation("BusinessPayoutPeriod");
+
+                    b.Navigation("BusinessProfile");
+
+                    b.Navigation("LoyaltyTransaction");
+
+                    b.Navigation("MemberProfile");
+                });
+
+            modelBuilder.Entity("DotNetApiTemplate.Infrastructure.LoveBrackley.BusinessAlertEntity", b =>
+                {
+                    b.HasOne("DotNetApiTemplate.Infrastructure.LoveBrackley.BusinessProfileEntity", "BusinessProfile")
+                        .WithMany("Alerts")
+                        .HasForeignKey("BusinessProfileId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("BusinessProfile");
+                });
+
+            modelBuilder.Entity("DotNetApiTemplate.Infrastructure.LoveBrackley.BusinessLocationEntity", b =>
+                {
+                    b.HasOne("DotNetApiTemplate.Infrastructure.LoveBrackley.BusinessProfileEntity", "BusinessProfile")
+                        .WithMany("Locations")
+                        .HasForeignKey("BusinessProfileId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("BusinessProfile");
+                });
+
+            modelBuilder.Entity("DotNetApiTemplate.Infrastructure.LoveBrackley.BusinessPayoutPeriodEntity", b =>
+                {
+                    b.HasOne("DotNetApiTemplate.Infrastructure.LoveBrackley.BusinessProfileEntity", "BusinessProfile")
+                        .WithMany("PayoutPeriods")
+                        .HasForeignKey("BusinessProfileId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("BusinessProfile");
+                });
+
+            modelBuilder.Entity("DotNetApiTemplate.Infrastructure.LoveBrackley.BusinessProfileEntity", b =>
+                {
+                    b.HasOne("DotNetApiTemplate.Infrastructure.Identity.ApplicationUser", "OwnerUser")
+                        .WithMany()
+                        .HasForeignKey("OwnerUserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("OwnerUser");
+                });
+
+            modelBuilder.Entity("DotNetApiTemplate.Infrastructure.LoveBrackley.BusinessStaffAccessEntity", b =>
+                {
+                    b.HasOne("DotNetApiTemplate.Infrastructure.LoveBrackley.BusinessProfileEntity", "BusinessProfile")
+                        .WithMany("StaffAccess")
+                        .HasForeignKey("BusinessProfileId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("DotNetApiTemplate.Infrastructure.Identity.ApplicationUser", "User")
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.Navigation("BusinessProfile");
+
+                    b.Navigation("User");
+                });
+
+            modelBuilder.Entity("DotNetApiTemplate.Infrastructure.LoveBrackley.LoyaltyCardEntity", b =>
+                {
+                    b.HasOne("DotNetApiTemplate.Infrastructure.LoveBrackley.MemberProfileEntity", "MemberProfile")
+                        .WithMany("LoyaltyCards")
+                        .HasForeignKey("MemberProfileId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("MemberProfile");
+                });
+
+            modelBuilder.Entity("DotNetApiTemplate.Infrastructure.LoveBrackley.LoyaltyPointsRuleEntity", b =>
+                {
+                    b.HasOne("DotNetApiTemplate.Infrastructure.Identity.ApplicationUser", "CreatedByUser")
+                        .WithMany()
+                        .HasForeignKey("CreatedByUserId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.Navigation("CreatedByUser");
+                });
+
+            modelBuilder.Entity("DotNetApiTemplate.Infrastructure.LoveBrackley.LoyaltyTransactionEntity", b =>
+                {
+                    b.HasOne("DotNetApiTemplate.Infrastructure.LoveBrackley.BusinessLocationEntity", "BusinessLocation")
+                        .WithMany("LoyaltyTransactions")
+                        .HasForeignKey("BusinessLocationId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("DotNetApiTemplate.Infrastructure.LoveBrackley.BusinessProfileEntity", "BusinessProfile")
+                        .WithMany("LoyaltyTransactions")
+                        .HasForeignKey("BusinessProfileId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("DotNetApiTemplate.Infrastructure.LoveBrackley.MemberProfileEntity", "MemberProfile")
+                        .WithMany("LoyaltyTransactions")
+                        .HasForeignKey("MemberProfileId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("DotNetApiTemplate.Infrastructure.Identity.ApplicationUser", "ReviewedByUser")
+                        .WithMany()
+                        .HasForeignKey("ReviewedByUserId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("DotNetApiTemplate.Infrastructure.LoveBrackley.BusinessStaffAccessEntity", "StaffAccess")
+                        .WithMany("LoyaltyTransactions")
+                        .HasForeignKey("StaffAccessId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.Navigation("BusinessLocation");
+
+                    b.Navigation("BusinessProfile");
+
+                    b.Navigation("MemberProfile");
+
+                    b.Navigation("ReviewedByUser");
+
+                    b.Navigation("StaffAccess");
+                });
+
+            modelBuilder.Entity("DotNetApiTemplate.Infrastructure.LoveBrackley.MemberProfileEntity", b =>
+                {
+                    b.HasOne("DotNetApiTemplate.Infrastructure.Identity.ApplicationUser", "User")
+                        .WithOne()
+                        .HasForeignKey("DotNetApiTemplate.Infrastructure.LoveBrackley.MemberProfileEntity", "UserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("User");
+                });
+
+            modelBuilder.Entity("DotNetApiTemplate.Infrastructure.LoveBrackley.SecurityAuditEntryEntity", b =>
+                {
+                    b.HasOne("DotNetApiTemplate.Infrastructure.Identity.ApplicationUser", "ActorUser")
+                        .WithMany()
+                        .HasForeignKey("ActorUserId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("DotNetApiTemplate.Infrastructure.LoveBrackley.BusinessProfileEntity", "BusinessProfile")
+                        .WithMany("SecurityAuditEntries")
+                        .HasForeignKey("BusinessProfileId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("DotNetApiTemplate.Infrastructure.LoveBrackley.BusinessStaffAccessEntity", "StaffAccess")
+                        .WithMany("SecurityAuditEntries")
+                        .HasForeignKey("StaffAccessId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.Navigation("ActorUser");
+
+                    b.Navigation("BusinessProfile");
+
+                    b.Navigation("StaffAccess");
+                });
+
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityRoleClaim<string>", b =>
                 {
                     b.HasOne("DotNetApiTemplate.Infrastructure.Identity.ApplicationRole", null)
@@ -558,6 +1524,54 @@ namespace DotNetApiTemplate.Infrastructure.Persistence.Migrations
                     b.Navigation("PasswordResetTokens");
 
                     b.Navigation("RefreshTokens");
+                });
+
+            modelBuilder.Entity("DotNetApiTemplate.Infrastructure.LoveBrackley.BusinessLocationEntity", b =>
+                {
+                    b.Navigation("LoyaltyTransactions");
+                });
+
+            modelBuilder.Entity("DotNetApiTemplate.Infrastructure.LoveBrackley.BusinessPayoutPeriodEntity", b =>
+                {
+                    b.Navigation("AdminReviewCases");
+                });
+
+            modelBuilder.Entity("DotNetApiTemplate.Infrastructure.LoveBrackley.BusinessProfileEntity", b =>
+                {
+                    b.Navigation("AdminReviewCases");
+
+                    b.Navigation("Alerts");
+
+                    b.Navigation("Locations");
+
+                    b.Navigation("LoyaltyTransactions");
+
+                    b.Navigation("PayoutPeriods");
+
+                    b.Navigation("SecurityAuditEntries");
+
+                    b.Navigation("StaffAccess");
+                });
+
+            modelBuilder.Entity("DotNetApiTemplate.Infrastructure.LoveBrackley.BusinessStaffAccessEntity", b =>
+                {
+                    b.Navigation("LoyaltyTransactions");
+
+                    b.Navigation("SecurityAuditEntries");
+                });
+
+            modelBuilder.Entity("DotNetApiTemplate.Infrastructure.LoveBrackley.LoyaltyTransactionEntity", b =>
+                {
+                    b.Navigation("AdminReviewCases");
+                });
+
+            modelBuilder.Entity("DotNetApiTemplate.Infrastructure.LoveBrackley.MemberProfileEntity", b =>
+                {
+                    b.Navigation("AdminReviewCases");
+
+                    b.Navigation("LoyaltyCards");
+
+                    b.Navigation("LoyaltyTransactions");
                 });
 #pragma warning restore 612, 618
         }
