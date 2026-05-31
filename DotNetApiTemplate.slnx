@@ -1,0 +1,26 @@
+<Solution>
+  <Folder Name="/.github/">
+    <File Path="copilot-instructions.md" />
+  </Folder>
+  <Folder Name="/.github/instructions/">
+    <File Path="backend-api.instructions.md" />
+    <File Path="security.instructions.md" />
+  </Folder>
+  <Folder Name="/docs/">
+    <File Path="feature-development.md" />
+  </Folder>
+  <Folder Name="/Solution Items/">
+    <File Path=".editorconfig" />
+    <File Path=".gitignore" />
+    <File Path="AGENTS.md" />
+    <File Path="Directory.Build.Props" />
+    <File Path="Directory.Packages.props" />
+    <File Path="README.md" />
+  </Folder>
+  <Folder Name="/src/">
+    <Project Path="DotNetApiTemplate.Api/DotNetApiTemplate.Api.csproj" />
+    <Project Path="DotNetApiTemplate.Application/DotNetApiTemplate.Application.csproj" />
+    <Project Path="DotNetApiTemplate.Domain/DotNetApiTemplate.Domain.csproj" />
+    <Project Path="DotNetApiTemplate.Infrastructure/DotNetApiTemplate.Infrastructure.csproj" />
+  </Folder>
+</Solution>
