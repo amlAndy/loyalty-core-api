@@ -8,6 +8,25 @@ namespace DotNetApiTemplate.Application.Features.Auth.Services;
 
 public sealed class AuthService : IAuthService
 {
+    private static readonly IReadOnlyDictionary<string, string[]> AllowedRolesByScreen =
+        new Dictionary<string, string[]>(StringComparer.OrdinalIgnoreCase)
+        {
+            [LoginScreenTypes.Member] =
+            [
+                ApplicationRoleNames.Member
+            ],
+            [LoginScreenTypes.Business] =
+            [
+                ApplicationRoleNames.BusinessOwner,
+                ApplicationRoleNames.BusinessStaff
+            ],
+            [LoginScreenTypes.Admin] =
+            [
+                ApplicationRoleNames.PlatformAdmin,
+                ApplicationRoleNames.TownAdmin
+            ]
+        };
+
     private readonly IValidator<LoginCommand> _loginValidator;
     private readonly IValidator<ForgotPasswordCommand> _forgotPasswordValidator;
     private readonly IValidator<ResetPasswordCommand> _resetPasswordValidator;
@@ -49,10 +68,19 @@ public sealed class AuthService : IAuthService
     {
         await _loginValidator.ValidateAndThrowAsync(command, cancellationToken);
 
-        return await _userAuthRepository.AuthenticateAsync(
+        var result = await _userAuthRepository.AuthenticateAsync(
             command.Email,
             command.Password,
             cancellationToken);
+
+        if (result is null)
+        {
+            return null;
+        }
+
+        EnsureLoginScreenAccess(command.Screen, result.User.Roles);
+
+        return result;
     }
 
     public Task<bool> LogoutAsync(
@@ -187,5 +215,31 @@ public sealed class AuthService : IAuthService
     {
         return new ValidationException(
             [new ValidationFailure(propertyName, errorMessage)]);
+    }
+
+    private static void EnsureLoginScreenAccess(string screen, IReadOnlyCollection<string> userRoles)
+    {
+        if (!AllowedRolesByScreen.TryGetValue(screen, out var allowedRoles))
+        {
+            throw CreateValidationException("Screen", "Screen must be one of: member, business, admin.");
+        }
+
+        if (userRoles.Any(role => allowedRoles.Contains(role, StringComparer.Ordinal)))
+        {
+            return;
+        }
+
+        throw new AuthForbiddenException(GetForbiddenLoginMessage(screen));
+    }
+
+    private static string GetForbiddenLoginMessage(string screen)
+    {
+        return screen.ToLowerInvariant() switch
+        {
+            LoginScreenTypes.Member => "This account cannot sign in on the member screen.",
+            LoginScreenTypes.Business => "This account cannot sign in on the business screen.",
+            LoginScreenTypes.Admin => "This account cannot sign in on the admin screen.",
+            _ => "This account cannot sign in on this screen."
+        };
     }
 }

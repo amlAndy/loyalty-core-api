@@ -16,5 +16,11 @@ public sealed class LoginCommandValidator : AbstractValidator<LoginCommand>
         RuleFor(command => command.Password)
             .NotEmpty()
             .WithMessage("Password is required.");
+
+        RuleFor(command => command.Screen)
+            .NotEmpty()
+            .WithMessage("Screen is required.")
+            .Must(screen => LoginScreenTypes.Values.Contains(screen, StringComparer.OrdinalIgnoreCase))
+            .WithMessage("Screen must be one of: member, business, admin.");
     }
 }

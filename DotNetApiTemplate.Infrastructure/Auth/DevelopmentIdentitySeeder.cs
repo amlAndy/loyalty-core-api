@@ -1,8 +1,8 @@
-using System.Text.Json;
 using DotNetApiTemplate.Infrastructure.Admin.Audit;
-using DotNetApiTemplate.Infrastructure.Identity;
 using DotNetApiTemplate.Infrastructure.Admin.Roles;
+using DotNetApiTemplate.Infrastructure.Identity;
 using DotNetApiTemplate.Infrastructure.Persistence;
+using DotNetApiTemplate.Application.Features.Auth.Dtos;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 
@@ -12,12 +12,32 @@ public sealed class DevelopmentIdentitySeeder
 {
     private const string ActiveStatus = "Active";
     private const string PermissionClaimType = "permission";
+    private const string LocalDevelopmentPassword = "Password123!";
+    private static readonly string[] LegacyTemplateRoleNames =
+    [
+        "Super User",
+        "Administrator",
+        "Supplier"
+    ];
+    private static readonly string[] LegacyTemplateUserEmails =
+    [
+        "member@example.com",
+        "supplier@example.com",
+        "admin@example.com",
+        "superuser@example.com"
+    ];
+    private static readonly Guid[] LegacyTemplateAuditEntryIds =
+    [
+        Guid.Parse("9d7e85ca-b408-4fc4-a205-f8396f8aa001"),
+        Guid.Parse("9d7e85ca-b408-4fc4-a205-f8396f8aa002"),
+        Guid.Parse("9d7e85ca-b408-4fc4-a205-f8396f8aa003")
+    ];
     private static readonly string[] AllPermissionCodes = new StaticPermissionCatalogProvider()
         .GetPermissions()
         .Select(permission => permission.Code)
         .ToArray();
 
-    private static readonly string[] AdministratorPermissionCodes =
+    private static readonly string[] TownAdminPermissionCodes =
     [
         "admin.view",
         "users.view",
@@ -38,116 +58,88 @@ public sealed class DevelopmentIdentitySeeder
     private static readonly DevelopmentSeedRole[] SeedRoles =
     [
         new(
-            "role-super-user",
-            "Super User",
-            "Protected root role with full system access.",
+            "role-platform-admin",
+            ApplicationRoleNames.PlatformAdmin,
+            "Platform-wide administration for Love-Brackley local development.",
             null,
             true,
             true,
             AllPermissionCodes),
         new(
-            "role-administrator",
-            "Administrator",
-            "Template example administrator role under Super User.",
-            "role-super-user",
+            "role-town-admin",
+            ApplicationRoleNames.TownAdmin,
+            "Town administration role for Love-Brackley local development.",
+            "role-platform-admin",
             false,
-            false,
-            AdministratorPermissionCodes),
+            true,
+            TownAdminPermissionCodes),
         new(
-            "role-member",
-            "Member",
-            "Template example member role under Administrator.",
-            "role-administrator",
+            "role-business-owner",
+            ApplicationRoleNames.BusinessOwner,
+            "Business owner role for local development journeys.",
+            null,
             false,
-            false,
+            true,
             []),
         new(
-            "role-supplier",
-            "Supplier",
-            "Template example supplier role under Administrator.",
-            "role-administrator",
+            "role-business-staff",
+            ApplicationRoleNames.BusinessStaff,
+            "Business staff role for local development journeys.",
+            null,
             false,
+            true,
+            []),
+        new(
+            "role-member",
+            ApplicationRoleNames.Member,
+            "Love-Brackley local resident and member role.",
+            null,
             false,
+            true,
+            []),
+        new(
+            "role-support-user",
+            ApplicationRoleNames.SupportUser,
+            "Support role reserved for local development support scenarios.",
+            "role-town-admin",
+            false,
+            true,
             [])
     ];
 
     public static readonly DevelopmentSeedUser[] SeedUsers =
     [
-        new("member@example.com", "MemberPass!1", "Member User", "Member"),
-        new("supplier@example.com", "SupplierPass!1", "Supplier User", "Supplier"),
-        new("admin@example.com", "AdminPass!1", "Admin User", "Administrator"),
-        new("superuser@example.com", "SuperUserPass!1", "SuperUser", "Super User")
+        new(
+            "member.alice@love-brackley.local",
+            "Alice Member",
+            [ApplicationRoleNames.Member]),
+        new(
+            "owner.greenpantry@love-brackley.local",
+            "Grace Green Pantry Owner",
+            [ApplicationRoleNames.BusinessOwner]),
+        new(
+            "staff.greenpantry@love-brackley.local",
+            "Sam Green Pantry Staff",
+            [ApplicationRoleNames.BusinessStaff]),
+        new(
+            "admin.platform@love-brackley.local",
+            "Paula Platform Admin",
+            [ApplicationRoleNames.PlatformAdmin]),
+        new(
+            "owner.member@love-brackley.local",
+            "Oliver Owner Member",
+            [ApplicationRoleNames.BusinessOwner, ApplicationRoleNames.Member]),
+        new(
+            "admin.member@love-brackley.local",
+            "Tina Town Admin Member",
+            [ApplicationRoleNames.TownAdmin, ApplicationRoleNames.Member]),
+        new(
+            "admin.owner.member@love-brackley.local",
+            "Morgan Admin Owner Member",
+            [ApplicationRoleNames.TownAdmin, ApplicationRoleNames.BusinessOwner, ApplicationRoleNames.Member])
     ];
 
-    private static readonly DevelopmentSeedAuditEntry[] SeedAuditEntries =
-    [
-        new(
-            Guid.Parse("9d7e85ca-b408-4fc4-a205-f8396f8aa001"),
-            DateTimeOffset.Parse("2026-04-22T10:15:00Z"),
-            "superuser@example.com",
-            "SuperUser",
-            "UserCreated",
-            "User Created",
-            "User",
-            "admin@example.com",
-            "Admin User",
-            "Admin User",
-            "Created an administrator account with Finance child role.",
-            [
-                new DevelopmentSeedAuditDetail(
-                    0,
-                    "financeRole",
-                    "Finance role",
-                    null,
-                    JsonSerializer.Serialize("Finance child role")),
-                new DevelopmentSeedAuditDetail(
-                    1,
-                    "roles",
-                    "Roles",
-                    JsonSerializer.Serialize(Array.Empty<string>()),
-                    JsonSerializer.Serialize(new[] { "Administrator", "Member" }))
-            ]),
-        new(
-            Guid.Parse("9d7e85ca-b408-4fc4-a205-f8396f8aa002"),
-            DateTimeOffset.Parse("2026-04-24T14:45:00Z"),
-            "superuser@example.com",
-            "SuperUser",
-            "RoleUpdated",
-            "Role Updated",
-            "Role",
-            "role-administrator",
-            "Administrator",
-            "Administrator",
-            "Updated Administrator example permissions under the protected Super User root.",
-            [
-                new DevelopmentSeedAuditDetail(
-                    0,
-                    "permissions",
-                    "Permissions",
-                    JsonSerializer.Serialize(new[] { "users.view", "roles.view" }),
-                    JsonSerializer.Serialize(new[] { "admin.view", "users.view", "users.create", "users.update", "users.delete", "users.activate", "users.deactivate", "roles.view", "roles.create", "roles.update", "roles.assign", "permissions.view", "permissions.assign", "audit.view" }))
-            ]),
-        new(
-            Guid.Parse("9d7e85ca-b408-4fc4-a205-f8396f8aa003"),
-            DateTimeOffset.Parse("2026-04-26T08:30:00Z"),
-            "admin@example.com",
-            "Admin User",
-            "UserStatusChanged",
-            "User Status Changed",
-            "User",
-            "supplier@example.com",
-            "Supplier User",
-            "Supplier User",
-            "Returned supplier account to active status for testing.",
-            [
-                new DevelopmentSeedAuditDetail(
-                    0,
-                    "status",
-                    "Status",
-                    JsonSerializer.Serialize("Inactive"),
-                    JsonSerializer.Serialize("Active"))
-            ])
-    ];
+    private static readonly DevelopmentSeedAuditEntry[] SeedAuditEntries = [];
 
     private readonly ApplicationDbContext _dbContext;
     private readonly RoleManager<ApplicationRole> _roleManager;
@@ -166,6 +158,7 @@ public sealed class DevelopmentIdentitySeeder
     public async Task SeedAsync(CancellationToken cancellationToken = default)
     {
         await _dbContext.Database.MigrateAsync(cancellationToken);
+        await RemoveObsoleteTemplateSeedDataAsync(cancellationToken);
         await RemoveConflictingSeedRolesAsync(cancellationToken);
 
         foreach (var role in SeedRoles)
@@ -214,7 +207,7 @@ public sealed class DevelopmentIdentitySeeder
 
         foreach (var seedUser in SeedUsers)
         {
-            await EnsureUserAsync(seedUser.Email, seedUser.Password, seedUser.DisplayName, seedUser.RoleName);
+            await EnsureUserAsync(seedUser, cancellationToken);
         }
 
         await SeedAuditEntriesAsync(cancellationToken);
@@ -265,6 +258,117 @@ public sealed class DevelopmentIdentitySeeder
         await _dbContext.SaveChangesAsync(cancellationToken);
     }
 
+    private async Task RemoveObsoleteTemplateSeedDataAsync(CancellationToken cancellationToken)
+    {
+        var legacyNormalizedEmails = LegacyTemplateUserEmails
+            .Select(email => _userManager.NormalizeEmail(email))
+            .ToArray();
+        var legacyUsers = await _dbContext.Users
+            .Where(user => user.NormalizedEmail != null && legacyNormalizedEmails.Contains(user.NormalizedEmail))
+            .ToArrayAsync(cancellationToken);
+
+        if (legacyUsers.Length > 0)
+        {
+            var legacyUserIds = legacyUsers.Select(user => user.Id).ToArray();
+            var legacyUserRoles = await _dbContext.UserRoles
+                .Where(userRole => legacyUserIds.Contains(userRole.UserId))
+                .ToArrayAsync(cancellationToken);
+            var legacyUserClaims = await _dbContext.UserClaims
+                .Where(userClaim => legacyUserIds.Contains(userClaim.UserId))
+                .ToArrayAsync(cancellationToken);
+            var legacyUserLogins = await _dbContext.UserLogins
+                .Where(userLogin => legacyUserIds.Contains(userLogin.UserId))
+                .ToArrayAsync(cancellationToken);
+            var legacyUserTokens = await _dbContext.UserTokens
+                .Where(userToken => legacyUserIds.Contains(userToken.UserId))
+                .ToArrayAsync(cancellationToken);
+            var legacyRefreshTokens = await _dbContext.RefreshTokens
+                .Where(refreshToken => legacyUserIds.Contains(refreshToken.UserId))
+                .ToArrayAsync(cancellationToken);
+            var legacyPasswordResetTokens = await _dbContext.PasswordResetTokens
+                .Where(passwordResetToken => legacyUserIds.Contains(passwordResetToken.UserId))
+                .ToArrayAsync(cancellationToken);
+
+            if (legacyUserRoles.Length > 0)
+            {
+                _dbContext.UserRoles.RemoveRange(legacyUserRoles);
+            }
+
+            if (legacyUserClaims.Length > 0)
+            {
+                _dbContext.UserClaims.RemoveRange(legacyUserClaims);
+            }
+
+            if (legacyUserLogins.Length > 0)
+            {
+                _dbContext.UserLogins.RemoveRange(legacyUserLogins);
+            }
+
+            if (legacyUserTokens.Length > 0)
+            {
+                _dbContext.UserTokens.RemoveRange(legacyUserTokens);
+            }
+
+            if (legacyRefreshTokens.Length > 0)
+            {
+                _dbContext.RefreshTokens.RemoveRange(legacyRefreshTokens);
+            }
+
+            if (legacyPasswordResetTokens.Length > 0)
+            {
+                _dbContext.PasswordResetTokens.RemoveRange(legacyPasswordResetTokens);
+            }
+
+            _dbContext.Users.RemoveRange(legacyUsers);
+        }
+
+        var legacyAuditDetails = await _dbContext.AuditChangeDetails
+            .Where(detail => LegacyTemplateAuditEntryIds.Contains(detail.AuditEntryId))
+            .ToArrayAsync(cancellationToken);
+        var legacyAuditEntries = await _dbContext.AuditEntries
+            .Where(entry => LegacyTemplateAuditEntryIds.Contains(entry.Id))
+            .ToArrayAsync(cancellationToken);
+
+        if (legacyAuditDetails.Length > 0)
+        {
+            _dbContext.AuditChangeDetails.RemoveRange(legacyAuditDetails);
+        }
+
+        if (legacyAuditEntries.Length > 0)
+        {
+            _dbContext.AuditEntries.RemoveRange(legacyAuditEntries);
+        }
+
+        var legacyRoles = await _dbContext.Roles
+            .Where(role => role.Name != null && LegacyTemplateRoleNames.Contains(role.Name))
+            .ToArrayAsync(cancellationToken);
+
+        if (legacyRoles.Length > 0)
+        {
+            var legacyRoleIds = legacyRoles.Select(role => role.Id).ToArray();
+            var legacyRoleClaims = await _dbContext.RoleClaims
+                .Where(roleClaim => legacyRoleIds.Contains(roleClaim.RoleId))
+                .ToArrayAsync(cancellationToken);
+            var legacyUserRoles = await _dbContext.UserRoles
+                .Where(userRole => legacyRoleIds.Contains(userRole.RoleId))
+                .ToArrayAsync(cancellationToken);
+
+            if (legacyRoleClaims.Length > 0)
+            {
+                _dbContext.RoleClaims.RemoveRange(legacyRoleClaims);
+            }
+
+            if (legacyUserRoles.Length > 0)
+            {
+                _dbContext.UserRoles.RemoveRange(legacyUserRoles);
+            }
+
+            _dbContext.Roles.RemoveRange(legacyRoles);
+        }
+
+        await _dbContext.SaveChangesAsync(cancellationToken);
+    }
+
     private async Task ReplaceRolePermissionsAsync(
         string roleId,
         string[] permissionCodes,
@@ -293,49 +397,60 @@ public sealed class DevelopmentIdentitySeeder
     }
 
     private async Task EnsureUserAsync(
-        string email,
-        string password,
-        string displayName,
-        string roleName)
+        DevelopmentSeedUser seedUser,
+        CancellationToken cancellationToken)
     {
-        var user = await _userManager.FindByEmailAsync(email);
+        var normalizedEmail = _userManager.NormalizeEmail(seedUser.Email);
+        var user = await _dbContext.Users
+            .SingleOrDefaultAsync(candidate => candidate.NormalizedEmail == normalizedEmail, cancellationToken);
 
         if (user is null)
         {
             user = new ApplicationUser
             {
-                UserName = email,
-                Email = email,
+                UserName = seedUser.Email,
+                Email = seedUser.Email,
                 EmailConfirmed = true,
-                DisplayName = displayName,
+                DisplayName = seedUser.DisplayName,
                 Status = ActiveStatus
             };
 
-            var createResult = await _userManager.CreateAsync(user, password);
+            var createResult = await _userManager.CreateAsync(user, LocalDevelopmentPassword);
             EnsureSucceeded(createResult);
         }
         else
         {
-            user.DisplayName = displayName;
+            user.DisplayName = seedUser.DisplayName;
             user.Status = ActiveStatus;
             user.EmailConfirmed = true;
-            user.UserName = email;
-            user.Email = email;
+            user.UserName = seedUser.Email;
+            user.Email = seedUser.Email;
 
             var updateResult = await _userManager.UpdateAsync(user);
             EnsureSucceeded(updateResult);
         }
 
-        if (!await _userManager.IsInRoleAsync(user, roleName))
-        {
-            var addToRoleResult = await _userManager.AddToRoleAsync(user, roleName);
-            EnsureSucceeded(addToRoleResult);
-        }
+        await EnsureLocalDevelopmentPasswordAsync(user);
 
         var currentRoles = await _userManager.GetRolesAsync(user);
+        var desiredRoles = new HashSet<string>(seedUser.RoleNames, StringComparer.Ordinal);
+        var desiredRoleNames = SeedRoles
+            .Where(role => desiredRoles.Contains(role.Name))
+            .Select(role => role.Name)
+            .ToArray();
+        var rolesToAdd = desiredRoleNames
+            .Where(roleName => !currentRoles.Contains(roleName, StringComparer.Ordinal))
+            .ToArray();
+
+        if (rolesToAdd.Length > 0)
+        {
+            var addToRolesResult = await _userManager.AddToRolesAsync(user, rolesToAdd);
+            EnsureSucceeded(addToRolesResult);
+        }
+
         var rolesToRemove = currentRoles
             .Where(currentRole =>
-                !string.Equals(currentRole, roleName, StringComparison.Ordinal) &&
+                !desiredRoles.Contains(currentRole) &&
                 SeedRoles.Any(seedRole => string.Equals(seedRole.Name, currentRole, StringComparison.Ordinal)))
             .ToArray();
 
@@ -344,6 +459,28 @@ public sealed class DevelopmentIdentitySeeder
             var removeFromRolesResult = await _userManager.RemoveFromRolesAsync(user, rolesToRemove);
             EnsureSucceeded(removeFromRolesResult);
         }
+    }
+
+    private async Task EnsureLocalDevelopmentPasswordAsync(ApplicationUser user)
+    {
+        if (await _userManager.CheckPasswordAsync(user, LocalDevelopmentPassword))
+        {
+            return;
+        }
+
+        IdentityResult result;
+
+        if (await _userManager.HasPasswordAsync(user))
+        {
+            var passwordResetToken = await _userManager.GeneratePasswordResetTokenAsync(user);
+            result = await _userManager.ResetPasswordAsync(user, passwordResetToken, LocalDevelopmentPassword);
+        }
+        else
+        {
+            result = await _userManager.AddPasswordAsync(user, LocalDevelopmentPassword);
+        }
+
+        EnsureSucceeded(result);
     }
 
     private async Task SeedAuditEntriesAsync(CancellationToken cancellationToken)
@@ -413,9 +550,8 @@ public sealed class DevelopmentIdentitySeeder
 
     public sealed record DevelopmentSeedUser(
         string Email,
-        string Password,
         string DisplayName,
-        string RoleName);
+        string[] RoleNames);
 
     private sealed record DevelopmentSeedRole(
         string Id,

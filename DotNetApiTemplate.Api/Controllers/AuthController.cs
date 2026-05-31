@@ -26,6 +26,7 @@ public sealed class AuthController : ControllerBase
     [HttpPost("login")]
     [ProducesResponseType(typeof(LoginResponseDto), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(LoginForbiddenResponseDto), StatusCodes.Status403Forbidden)]
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]
     public async Task<ActionResult<LoginResponseDto>> Login(
         [FromBody] LoginRequestDto request,
@@ -46,6 +47,15 @@ public sealed class AuthController : ControllerBase
         catch (ValidationException exception)
         {
             return CreateValidationProblem(exception);
+        }
+        catch (AuthForbiddenException exception)
+        {
+            return StatusCode(
+                StatusCodes.Status403Forbidden,
+                new LoginForbiddenResponseDto
+                {
+                    Message = exception.RedirectUrl ?? exception.Message
+                });
         }
     }
 

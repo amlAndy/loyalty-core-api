@@ -4,6 +4,7 @@ using DotNetApiTemplate.Application.Features.Admin.Authorization;
 using DotNetApiTemplate.Application.Features.Admin.Interfaces;
 using DotNetApiTemplate.Application.Features.Admin.Roles.Interfaces;
 using DotNetApiTemplate.Application.Features.Admin.Users.Interfaces;
+using DotNetApiTemplate.Application.Features.Auth.Dtos;
 using DotNetApiTemplate.Infrastructure.Admin;
 using DotNetApiTemplate.Infrastructure.Admin.Audit;
 using DotNetApiTemplate.Infrastructure.Persistence;
@@ -77,7 +78,7 @@ public static class InfrastructureServiceCollectionExtensions
         {
             options.AddPolicy(
                 AdminAuthorizationPolicies.AdminAccess,
-                policy => policy.RequireRole("Administrator", "Super User"));
+                policy => policy.RequireRole(ApplicationRoleNames.AdminRoles));
         });
 
         services.AddScoped<IAuditRepository, AuditRepository>();
