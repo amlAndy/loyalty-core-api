@@ -23,6 +23,7 @@ public sealed class MemberProfileEntity
     public ApplicationUser? User { get; set; }
     public ICollection<LoyaltyCardEntity> LoyaltyCards { get; set; } = [];
     public ICollection<LoyaltyTransactionEntity> LoyaltyTransactions { get; set; } = [];
+    public ICollection<MemberShopPreferenceEntity> ShopPreferences { get; set; } = [];
     public ICollection<AdminReviewCaseEntity> AdminReviewCases { get; set; } = [];
 }
 
@@ -68,6 +69,7 @@ public sealed class BusinessProfileEntity
     public ICollection<BusinessAlertEntity> Alerts { get; set; } = [];
     public ICollection<BusinessPayoutPeriodEntity> PayoutPeriods { get; set; } = [];
     public ICollection<SecurityAuditEntryEntity> SecurityAuditEntries { get; set; } = [];
+    public ICollection<MemberShopPreferenceEntity> MemberPreferences { get; set; } = [];
     public ICollection<AdminReviewCaseEntity> AdminReviewCases { get; set; } = [];
 }
 
@@ -233,4 +235,18 @@ public sealed class AdminAuditLogEntity
     public string? Reason { get; set; }
     public DateTimeOffset CreatedUtc { get; set; }
     public ApplicationUser? ActorUser { get; set; }
+}
+
+public sealed class MemberShopPreferenceEntity
+{
+    public Guid Id { get; set; }
+    public Guid MemberProfileId { get; set; }
+    public Guid BusinessProfileId { get; set; }
+    public bool ReceiveOfferNotifications { get; set; } = true;
+    public bool ReceiveUpdateNotifications { get; set; } = true;
+    public string Notes { get; set; } = string.Empty;
+    public DateTimeOffset SavedUtc { get; set; }
+    public DateTimeOffset? RemovedUtc { get; set; }
+    public MemberProfileEntity? MemberProfile { get; set; }
+    public BusinessProfileEntity? BusinessProfile { get; set; }
 }

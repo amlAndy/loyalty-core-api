@@ -486,6 +486,51 @@ public sealed class DevelopmentIdentitySeeder
             var removeFromRolesResult = await _userManager.RemoveFromRolesAsync(user, rolesToRemove);
             EnsureSucceeded(removeFromRolesResult);
         }
+
+        await EnsureMemberProfileAsync(user, desiredRoleNames, cancellationToken);
+    }
+
+    private async Task EnsureMemberProfileAsync(ApplicationUser user, string[] desiredRoleNames, CancellationToken cancellationToken)
+    {
+        var isMemberRole = desiredRoleNames.Contains(ApplicationRoleNames.Member, StringComparer.Ordinal);
+
+        if (!isMemberRole)
+        {
+            return;
+        }
+
+        var memberProfile = await _dbContext.MemberProfiles
+            .SingleOrDefaultAsync(profile => profile.UserId == user.Id, cancellationToken);
+
+        if (memberProfile is null)
+        {
+            memberProfile = new MemberProfileEntity
+            {
+                Id = Guid.NewGuid(),
+                UserId = user.Id,
+                DisplayName = user.DisplayName ?? user.UserName ?? user.Email ?? string.Empty,
+                Email = user.Email,
+                PublicMemberReference = GenerateMemberReference(),
+                CardCode = GenerateCardCode(),
+                Status = ActiveStatus,
+                PointsBalance = 0,
+                CreatedUtc = DateTimeOffset.UtcNow,
+                UpdatedUtc = DateTimeOffset.UtcNow
+            };
+
+            _dbContext.MemberProfiles.Add(memberProfile);
+            await _dbContext.SaveChangesAsync(cancellationToken);
+        }
+    }
+
+    private static string GenerateMemberReference()
+    {
+        return $"LBM-{DateTime.UtcNow.Ticks % 10000000:D7}";
+    }
+
+    private static string GenerateCardCode()
+    {
+        return $"LB-CARD-{Guid.NewGuid():N}".Substring(0, 15);
     }
 
     private async Task EnsureLocalDevelopmentPasswordAsync(ApplicationUser user)

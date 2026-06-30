@@ -66,4 +66,33 @@ public sealed class MembersController : ControllerBase
             return LoveBrackleyControllerHelpers.CreateValidationProblem(exception);
         }
     }
+
+    [HttpPost("me/favorites/{businessId:guid}")]
+    public async Task<ActionResult<DataResponse<FavoritedBusinessDto>>> SaveFavorite(Guid businessId, [FromBody] SaveMemberFavoriteRequest request, CancellationToken cancellationToken)
+    {
+        var result = await _memberLoyaltyService.SaveFavoriteAsync(User.GetCurrentUserId(), businessId, request, cancellationToken);
+        return result is null ? NotFound() : Created($"/api/members/me/favorites/{businessId}", new DataResponse<FavoritedBusinessDto>(result));
+    }
+
+    [HttpDelete("me/favorites/{businessId:guid}")]
+    public async Task<ActionResult> RemoveFavorite(Guid businessId, CancellationToken cancellationToken)
+    {
+        var result = await _memberLoyaltyService.RemoveFavoriteAsync(User.GetCurrentUserId(), businessId, cancellationToken);
+        return result ? NoContent() : NotFound();
+    }
+
+    [HttpGet("me/favorites")]
+    public async Task<ActionResult<DataResponse<MemberFavoritesResponse>>> GetFavorites([FromQuery] int page = 1, [FromQuery] int pageSize = 20, CancellationToken cancellationToken = default)
+    {
+        var result = await _memberLoyaltyService.GetFavoritesAsync(User.GetCurrentUserId(), page, pageSize, cancellationToken);
+        return result is null ? NotFound() : Ok(new DataResponse<MemberFavoritesResponse>(result));
+    }
+
+    [HttpPut("me/favorites/{businessId:guid}/preferences")]
+    public async Task<ActionResult<DataResponse<FavoritedBusinessDto>>> UpdateFavoritePreferences(Guid businessId, [FromBody] UpdateMemberFavoritePreferencesRequest request, CancellationToken cancellationToken)
+    {
+        var result = await _memberLoyaltyService.UpdateFavoritePreferencesAsync(User.GetCurrentUserId(), businessId, request, cancellationToken);
+        return result is null ? NotFound() : Ok(new DataResponse<FavoritedBusinessDto>(result));
+    }
 }
+

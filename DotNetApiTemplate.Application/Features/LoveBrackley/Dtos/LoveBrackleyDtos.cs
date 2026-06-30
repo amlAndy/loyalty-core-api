@@ -336,3 +336,25 @@ public sealed record AdjustPointsRequest(Guid BusinessId, int Points, string Rea
 public sealed record ResolveReviewCaseRequest(string ResolutionNotes);
 
 public sealed record EscalateReviewCaseRequest(string? Reason);
+
+public sealed record FavoritedBusinessDto(
+    Guid PreferenceId,
+    Guid BusinessId,
+    string Name,
+    string Category,
+    string LocationName,
+    string Town,
+    bool Featured,
+    bool ReceiveOfferNotifications,
+    bool ReceiveUpdateNotifications,
+    string? Notes,
+    DateTimeOffset SavedUtc);
+
+public sealed record SaveMemberFavoriteRequest(string? Notes);
+
+public sealed record UpdateMemberFavoritePreferencesRequest(
+    bool ReceiveOfferNotifications,
+    bool ReceiveUpdateNotifications,
+    string? Notes);
+
+public sealed record MemberFavoritesResponse(IReadOnlyList<FavoritedBusinessDto> Items, int Page, int PageSize, int TotalCount);

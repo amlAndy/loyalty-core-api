@@ -30,6 +30,7 @@ public sealed class ApplicationDbContext : IdentityDbContext<ApplicationUser, Ap
     public DbSet<LoyaltyPointsRuleEntity> LoyaltyPointsRules => Set<LoyaltyPointsRuleEntity>();
     public DbSet<LoyaltyTransactionEntity> LoyaltyTransactions => Set<LoyaltyTransactionEntity>();
     public DbSet<MemberProfileEntity> MemberProfiles => Set<MemberProfileEntity>();
+    public DbSet<MemberShopPreferenceEntity> MemberShopPreferences => Set<MemberShopPreferenceEntity>();
     public DbSet<SecurityAuditEntryEntity> SecurityAuditEntries => Set<SecurityAuditEntryEntity>();
 
     protected override void OnModelCreating(ModelBuilder builder)
@@ -463,6 +464,24 @@ public sealed class ApplicationDbContext : IdentityDbContext<ApplicationUser, Ap
                 .WithMany()
                 .HasForeignKey(audit => audit.ActorUserId)
                 .OnDelete(DeleteBehavior.Restrict);
+        });
+
+        builder.Entity<MemberShopPreferenceEntity>(entity =>
+        {
+            entity.ToTable("MemberShopPreferences");
+            entity.HasKey(preference => preference.Id);
+            entity.Property(preference => preference.Notes).HasMaxLength(500);
+            entity.HasIndex(preference => new { preference.MemberProfileId, preference.SavedUtc });
+            entity.HasIndex(preference => preference.BusinessProfileId);
+            entity.HasIndex(preference => new { preference.MemberProfileId, preference.BusinessProfileId }).IsUnique(false);
+            entity.HasOne(preference => preference.MemberProfile)
+                .WithMany(member => member.ShopPreferences)
+                .HasForeignKey(preference => preference.MemberProfileId)
+                .OnDelete(DeleteBehavior.Cascade);
+            entity.HasOne(preference => preference.BusinessProfile)
+                .WithMany(business => business.MemberPreferences)
+                .HasForeignKey(preference => preference.BusinessProfileId)
+                .OnDelete(DeleteBehavior.Cascade);
         });
     }
 }

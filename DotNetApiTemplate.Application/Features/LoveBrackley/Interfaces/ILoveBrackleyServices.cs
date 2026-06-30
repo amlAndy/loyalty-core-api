@@ -10,6 +10,10 @@ public interface IMemberLoyaltyService
     Task<MemberCardDto?> GetCardAsync(string? userId, CancellationToken cancellationToken);
     Task<MemberSettingsDto?> GetSettingsAsync(string? userId, CancellationToken cancellationToken);
     Task<MemberSettingsDto?> UpdateSettingsAsync(string? userId, UpdateMemberSettingsRequest request, CancellationToken cancellationToken);
+    Task<FavoritedBusinessDto?> SaveFavoriteAsync(string? userId, Guid businessId, SaveMemberFavoriteRequest request, CancellationToken cancellationToken);
+    Task<bool> RemoveFavoriteAsync(string? userId, Guid businessId, CancellationToken cancellationToken);
+    Task<MemberFavoritesResponse?> GetFavoritesAsync(string? userId, int page, int pageSize, CancellationToken cancellationToken);
+    Task<FavoritedBusinessDto?> UpdateFavoritePreferencesAsync(string? userId, Guid businessId, UpdateMemberFavoritePreferencesRequest request, CancellationToken cancellationToken);
 }
 
 public interface IParticipatingBusinessService

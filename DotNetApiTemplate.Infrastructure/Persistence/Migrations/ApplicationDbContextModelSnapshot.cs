@@ -1051,6 +1051,46 @@ namespace DotNetApiTemplate.Infrastructure.Persistence.Migrations
                         });
                 });
 
+            modelBuilder.Entity("DotNetApiTemplate.Infrastructure.LoveBrackley.MemberShopPreferenceEntity", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid>("BusinessProfileId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid>("MemberProfileId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("Notes")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.Property<bool>("ReceiveOfferNotifications")
+                        .HasColumnType("bit");
+
+                    b.Property<bool>("ReceiveUpdateNotifications")
+                        .HasColumnType("bit");
+
+                    b.Property<DateTimeOffset?>("RemovedUtc")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<DateTimeOffset>("SavedUtc")
+                        .HasColumnType("datetimeoffset");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("BusinessProfileId");
+
+                    b.HasIndex("MemberProfileId", "BusinessProfileId");
+
+                    b.HasIndex("MemberProfileId", "SavedUtc");
+
+                    b.ToTable("MemberShopPreferences", (string)null);
+                });
+
             modelBuilder.Entity("DotNetApiTemplate.Infrastructure.LoveBrackley.SecurityAuditEntryEntity", b =>
                 {
                     b.Property<Guid>("Id")
@@ -1433,6 +1473,25 @@ namespace DotNetApiTemplate.Infrastructure.Persistence.Migrations
                     b.Navigation("User");
                 });
 
+            modelBuilder.Entity("DotNetApiTemplate.Infrastructure.LoveBrackley.MemberShopPreferenceEntity", b =>
+                {
+                    b.HasOne("DotNetApiTemplate.Infrastructure.LoveBrackley.BusinessProfileEntity", "BusinessProfile")
+                        .WithMany("MemberPreferences")
+                        .HasForeignKey("BusinessProfileId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("DotNetApiTemplate.Infrastructure.LoveBrackley.MemberProfileEntity", "MemberProfile")
+                        .WithMany("ShopPreferences")
+                        .HasForeignKey("MemberProfileId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("BusinessProfile");
+
+                    b.Navigation("MemberProfile");
+                });
+
             modelBuilder.Entity("DotNetApiTemplate.Infrastructure.LoveBrackley.SecurityAuditEntryEntity", b =>
                 {
                     b.HasOne("DotNetApiTemplate.Infrastructure.Identity.ApplicationUser", "ActorUser")
@@ -1546,6 +1605,8 @@ namespace DotNetApiTemplate.Infrastructure.Persistence.Migrations
 
                     b.Navigation("LoyaltyTransactions");
 
+                    b.Navigation("MemberPreferences");
+
                     b.Navigation("PayoutPeriods");
 
                     b.Navigation("SecurityAuditEntries");
@@ -1572,6 +1633,8 @@ namespace DotNetApiTemplate.Infrastructure.Persistence.Migrations
                     b.Navigation("LoyaltyCards");
 
                     b.Navigation("LoyaltyTransactions");
+
+                    b.Navigation("ShopPreferences");
                 });
 #pragma warning restore 612, 618
         }

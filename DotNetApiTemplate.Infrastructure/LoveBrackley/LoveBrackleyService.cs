@@ -1227,4 +1227,188 @@ public sealed class LoveBrackleyService : IMemberLoyaltyService, IParticipatingB
     {
         throw new ValidationException([new ValidationFailure(propertyName, message)]);
     }
+
+    public async Task<FavoritedBusinessDto?> SaveFavoriteAsync(string? userId, Guid businessId, SaveMemberFavoriteRequest request, CancellationToken cancellationToken)
+    {
+        if (string.IsNullOrWhiteSpace(userId))
+        {
+            return null;
+        }
+
+        // Check if member exists and get business in parallel
+        var memberTask = _dbContext.MemberProfiles
+            .AsNoTracking()
+            .FirstOrDefaultAsync(m => m.UserId == userId, cancellationToken);
+
+        var businessTask = _dbContext.BusinessProfiles
+            .AsNoTracking()
+            .FirstOrDefaultAsync(b => b.Id == businessId, cancellationToken);
+
+        await Task.WhenAll(memberTask, businessTask);
+
+        var member = await memberTask;
+        var business = await businessTask;
+
+        if (member is null || business is null)
+        {
+            return null;
+        }
+
+        // Check if already exists using AsNoTracking for efficiency
+        var existing = await _dbContext.MemberShopPreferences
+            .AsNoTracking()
+            .FirstOrDefaultAsync(p => p.MemberProfileId == member.Id && p.BusinessProfileId == businessId && p.RemovedUtc == null, cancellationToken);
+
+        if (existing is not null)
+        {
+            return ToFavoritedBusinessDto(existing, business);
+        }
+
+        var preference = new MemberShopPreferenceEntity
+        {
+            Id = Guid.NewGuid(),
+            MemberProfileId = member.Id,
+            BusinessProfileId = businessId,
+            ReceiveOfferNotifications = true,
+            ReceiveUpdateNotifications = true,
+            Notes = request.Notes ?? string.Empty,
+            SavedUtc = DateTimeOffset.UtcNow,
+            RemovedUtc = null
+        };
+
+        _dbContext.MemberShopPreferences.Add(preference);
+        await _dbContext.SaveChangesAsync(cancellationToken);
+
+        return ToFavoritedBusinessDto(preference, business);
+    }
+
+    public async Task<bool> RemoveFavoriteAsync(string? userId, Guid businessId, CancellationToken cancellationToken)
+    {
+        if (string.IsNullOrWhiteSpace(userId))
+        {
+            return false;
+        }
+
+        // Get member directly without separate query
+        var member = await _dbContext.MemberProfiles
+            .FirstOrDefaultAsync(m => m.UserId == userId, cancellationToken);
+
+        if (member is null)
+        {
+            return false;
+        }
+
+        var preference = await _dbContext.MemberShopPreferences
+            .FirstOrDefaultAsync(p => p.MemberProfileId == member.Id && p.BusinessProfileId == businessId && p.RemovedUtc == null, cancellationToken);
+
+        if (preference is null)
+        {
+            return false;
+        }
+
+        preference.RemovedUtc = DateTimeOffset.UtcNow;
+        await _dbContext.SaveChangesAsync(cancellationToken);
+
+        return true;
+    }
+
+    public async Task<MemberFavoritesResponse?> GetFavoritesAsync(string? userId, int page, int pageSize, CancellationToken cancellationToken)
+    {
+        if (string.IsNullOrWhiteSpace(userId))
+        {
+            return null;
+        }
+
+        page = NormalizePage(page);
+        pageSize = NormalizePageSize(pageSize);
+
+        // Optimized single query: fetch preferences directly filtered by UserId through navigation
+        // This eliminates the separate member lookup query, reducing database round trips from 3 to 2
+        var preferences = await _dbContext.MemberShopPreferences
+            .AsNoTracking()
+            .Where(p => p.MemberProfile!.UserId == userId && p.RemovedUtc == null)
+            .Include(p => p.BusinessProfile)
+            .OrderByDescending(p => p.SavedUtc)
+            .ToListAsync(cancellationToken);
+
+        if (preferences.Count == 0)
+        {
+            // Check if member exists to return null vs empty list
+            var memberExists = await _dbContext.MemberProfiles
+                .AsNoTracking()
+                .AnyAsync(m => m.UserId == userId, cancellationToken);
+
+            if (!memberExists)
+            {
+                return null;
+            }
+
+            // Member exists but has no favorites
+            return new MemberFavoritesResponse([], page, pageSize, 0);
+        }
+
+        var totalCount = preferences.Count;
+        var items = preferences
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
+            .ToList();
+
+        var dtos = items.Select(p => ToFavoritedBusinessDto(p, p.BusinessProfile!)).ToList();
+
+        return new MemberFavoritesResponse(dtos, page, pageSize, totalCount);
+    }
+
+    public async Task<FavoritedBusinessDto?> UpdateFavoritePreferencesAsync(string? userId, Guid businessId, UpdateMemberFavoritePreferencesRequest request, CancellationToken cancellationToken)
+    {
+        if (string.IsNullOrWhiteSpace(userId))
+        {
+            return null;
+        }
+
+        // Get member directly without separate query
+        var member = await _dbContext.MemberProfiles
+            .FirstOrDefaultAsync(m => m.UserId == userId, cancellationToken);
+
+        if (member is null)
+        {
+            return null;
+        }
+
+        var preference = await _dbContext.MemberShopPreferences
+            .Include(p => p.BusinessProfile)
+            .FirstOrDefaultAsync(p => p.MemberProfileId == member.Id && p.BusinessProfileId == businessId && p.RemovedUtc == null, cancellationToken);
+
+        if (preference is null)
+        {
+            return null;
+        }
+
+        preference.ReceiveOfferNotifications = request.ReceiveOfferNotifications;
+        preference.ReceiveUpdateNotifications = request.ReceiveUpdateNotifications;
+        if (!string.IsNullOrWhiteSpace(request.Notes))
+        {
+            preference.Notes = request.Notes.Trim();
+        }
+
+        await _dbContext.SaveChangesAsync(cancellationToken);
+
+        return ToFavoritedBusinessDto(preference, preference.BusinessProfile!);
+    }
+
+    private static FavoritedBusinessDto ToFavoritedBusinessDto(MemberShopPreferenceEntity preference, BusinessProfileEntity business)
+    {
+        return new FavoritedBusinessDto(
+            preference.Id,
+            business.Id,
+            business.Name,
+            business.Category,
+            business.LocationName,
+            business.Town,
+            business.Featured,
+            preference.ReceiveOfferNotifications,
+            preference.ReceiveUpdateNotifications,
+            string.IsNullOrEmpty(preference.Notes) ? null : preference.Notes,
+            preference.SavedUtc);
+    }
 }
+
