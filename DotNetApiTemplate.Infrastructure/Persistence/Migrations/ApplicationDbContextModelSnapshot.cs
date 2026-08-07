@@ -513,6 +513,48 @@ namespace DotNetApiTemplate.Infrastructure.Persistence.Migrations
                     b.ToTable("BusinessAlerts", (string)null);
                 });
 
+            modelBuilder.Entity("DotNetApiTemplate.Infrastructure.LoveBrackley.BusinessCategoryEntity", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTimeOffset>("CreatedUtc")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<string>("Description")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.Property<int>("DisplayOrder")
+                        .HasColumnType("int");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(150)
+                        .HasColumnType("nvarchar(150)");
+
+                    b.Property<string>("Slug")
+                        .IsRequired()
+                        .HasMaxLength(150)
+                        .HasColumnType("nvarchar(150)");
+
+                    b.Property<DateTimeOffset?>("UpdatedUtc")
+                        .HasColumnType("datetimeoffset");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Slug")
+                        .IsUnique();
+
+                    b.HasIndex("IsActive", "DisplayOrder");
+
+                    b.ToTable("BusinessCategories", (string)null);
+                });
+
             modelBuilder.Entity("DotNetApiTemplate.Infrastructure.LoveBrackley.BusinessLocationEntity", b =>
                 {
                     b.Property<Guid>("Id")
@@ -648,6 +690,9 @@ namespace DotNetApiTemplate.Infrastructure.Persistence.Migrations
                         .HasMaxLength(50)
                         .HasColumnType("nvarchar(50)");
 
+                    b.Property<Guid>("BusinessCategoryId")
+                        .HasColumnType("uniqueidentifier");
+
                     b.Property<string>("Category")
                         .IsRequired()
                         .HasMaxLength(100)
@@ -707,6 +752,9 @@ namespace DotNetApiTemplate.Infrastructure.Persistence.Migrations
                         .HasMaxLength(100)
                         .HasColumnType("nvarchar(100)");
 
+                    b.Property<Guid>("TownId")
+                        .HasColumnType("uniqueidentifier");
+
                     b.Property<string>("TradingHoursSummary")
                         .IsRequired()
                         .HasMaxLength(500)
@@ -720,7 +768,11 @@ namespace DotNetApiTemplate.Infrastructure.Persistence.Migrations
                     b.HasIndex("BrandReference")
                         .IsUnique();
 
+                    b.HasIndex("BusinessCategoryId");
+
                     b.HasIndex("OwnerUserId");
+
+                    b.HasIndex("TownId");
 
                     b.HasIndex("ParticipationStatus", "Featured");
 
@@ -1142,6 +1194,53 @@ namespace DotNetApiTemplate.Infrastructure.Persistence.Migrations
                     b.ToTable("SecurityAuditEntries", (string)null);
                 });
 
+            modelBuilder.Entity("DotNetApiTemplate.Infrastructure.LoveBrackley.TownEntity", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTimeOffset>("CreatedUtc")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<string>("DisplayName")
+                        .IsRequired()
+                        .HasMaxLength(150)
+                        .HasColumnType("nvarchar(150)");
+
+                    b.Property<int>("DisplayOrder")
+                        .HasColumnType("int");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(150)
+                        .HasColumnType("nvarchar(150)");
+
+                    b.Property<string>("PrimaryDomain")
+                        .HasMaxLength(250)
+                        .HasColumnType("nvarchar(250)");
+
+                    b.Property<string>("Slug")
+                        .IsRequired()
+                        .HasMaxLength(150)
+                        .HasColumnType("nvarchar(150)");
+
+                    b.Property<DateTimeOffset?>("UpdatedUtc")
+                        .HasColumnType("datetimeoffset");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Slug")
+                        .IsUnique();
+
+                    b.HasIndex("IsActive", "DisplayOrder");
+
+                    b.ToTable("Towns", (string)null);
+                });
+
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityRoleClaim<string>", b =>
                 {
                     b.Property<int>("Id")
@@ -1374,13 +1473,29 @@ namespace DotNetApiTemplate.Infrastructure.Persistence.Migrations
 
             modelBuilder.Entity("DotNetApiTemplate.Infrastructure.LoveBrackley.BusinessProfileEntity", b =>
                 {
+                    b.HasOne("DotNetApiTemplate.Infrastructure.LoveBrackley.BusinessCategoryEntity", "BusinessCategory")
+                        .WithMany("BusinessProfiles")
+                        .HasForeignKey("BusinessCategoryId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
                     b.HasOne("DotNetApiTemplate.Infrastructure.Identity.ApplicationUser", "OwnerUser")
                         .WithMany()
                         .HasForeignKey("OwnerUserId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
+                    b.HasOne("DotNetApiTemplate.Infrastructure.LoveBrackley.TownEntity", "TownLookup")
+                        .WithMany("BusinessProfiles")
+                        .HasForeignKey("TownId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("BusinessCategory");
+
                     b.Navigation("OwnerUser");
+
+                    b.Navigation("TownLookup");
                 });
 
             modelBuilder.Entity("DotNetApiTemplate.Infrastructure.LoveBrackley.BusinessStaffAccessEntity", b =>
@@ -1585,6 +1700,11 @@ namespace DotNetApiTemplate.Infrastructure.Persistence.Migrations
                     b.Navigation("RefreshTokens");
                 });
 
+            modelBuilder.Entity("DotNetApiTemplate.Infrastructure.LoveBrackley.BusinessCategoryEntity", b =>
+                {
+                    b.Navigation("BusinessProfiles");
+                });
+
             modelBuilder.Entity("DotNetApiTemplate.Infrastructure.LoveBrackley.BusinessLocationEntity", b =>
                 {
                     b.Navigation("LoyaltyTransactions");
@@ -1635,6 +1755,11 @@ namespace DotNetApiTemplate.Infrastructure.Persistence.Migrations
                     b.Navigation("LoyaltyTransactions");
 
                     b.Navigation("ShopPreferences");
+                });
+
+            modelBuilder.Entity("DotNetApiTemplate.Infrastructure.LoveBrackley.TownEntity", b =>
+                {
+                    b.Navigation("BusinessProfiles");
                 });
 #pragma warning restore 612, 618
         }

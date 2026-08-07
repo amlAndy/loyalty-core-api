@@ -15,6 +15,8 @@ erDiagram
 	MemberProfile ||--o{ LoyaltyTransaction : owns
 	MemberProfile ||--o{ AdminReviewCase : "member cases"
 
+	Town ||--o{ BusinessProfile : contains
+	BusinessCategory ||--o{ BusinessProfile : classifies
 	BusinessProfile ||--o{ BusinessLocation : has
 	BusinessProfile ||--o{ BusinessStaffAccess : has
 	BusinessProfile ||--o{ LoyaltyTransaction : receives
@@ -65,17 +67,42 @@ erDiagram
 		datetime DisabledUtc
 	}
 
+	Town {
+		guid Id PK
+		string Name UK
+		string Slug UK
+		string DisplayName
+		string PrimaryDomain
+		bool IsActive
+		int DisplayOrder
+		datetime CreatedUtc
+		datetime UpdatedUtc
+	}
+
+	BusinessCategory {
+		guid Id PK
+		string Name
+		string Slug UK
+		string Description
+		bool IsActive
+		int DisplayOrder
+		datetime CreatedUtc
+		datetime UpdatedUtc
+	}
+
 	BusinessProfile {
 		guid Id PK
 		string OwnerUserId FK
 		string Name
 		string BrandReference UK
-		string Category
+		string Category "legacy display"
+		guid TownId FK
+		guid BusinessCategoryId FK
 		string Description
 		string LocationName
 		string AddressLine1
 		string AddressLine2
-		string Town
+		string Town "legacy display"
 		string Postcode
 		string ContactEmail
 		string SupportEmail

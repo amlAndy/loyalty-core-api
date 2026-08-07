@@ -4,6 +4,19 @@ public sealed record DataResponse<T>(T Data);
 
 public sealed record PagedResponse<T>(IReadOnlyList<T> Items, int Page, int PageSize, int TotalCount);
 
+public sealed record TownSummaryDto(
+    Guid Id,
+    string Name,
+    string Slug,
+    string DisplayName,
+    string? PrimaryDomain);
+
+public sealed record BusinessCategoryDto(
+    Guid Id,
+    string Name,
+    string Slug,
+    string? Description);
+
 public sealed record MemberDashboardDto(
     string DisplayName,
     string PublicMemberReference,
@@ -85,6 +98,12 @@ public sealed record ParticipatingBusinessSummaryDto(
     string Description,
     string LocationName,
     string Town,
+    Guid TownId,
+    string TownName,
+    string TownSlug,
+    Guid BusinessCategoryId,
+    string CategoryName,
+    string CategorySlug,
     bool Featured,
     string TradingHoursSummary);
 
@@ -205,11 +224,17 @@ public sealed record BusinessSettingsDto(
     Guid BusinessId,
     string Name,
     string Category,
+    Guid BusinessCategoryId,
+    string CategoryName,
+    string CategorySlug,
     string Description,
     string LocationName,
     string AddressLine1,
     string? AddressLine2,
     string Town,
+    Guid TownId,
+    string TownName,
+    string TownSlug,
     string Postcode,
     string ContactEmail,
     string? SupportEmail,
@@ -246,6 +271,12 @@ public sealed record AdminBusinessDto(
     string Name,
     string BrandReference,
     string Category,
+    Guid BusinessCategoryId,
+    string CategoryName,
+    string CategorySlug,
+    Guid TownId,
+    string TownName,
+    string TownSlug,
     string ParticipationStatus,
     bool Featured,
     string OwnerUserId,
@@ -342,8 +373,14 @@ public sealed record FavoritedBusinessDto(
     Guid BusinessId,
     string Name,
     string Category,
+    Guid BusinessCategoryId,
+    string CategoryName,
+    string CategorySlug,
     string LocationName,
     string Town,
+    Guid TownId,
+    string TownName,
+    string TownSlug,
     bool Featured,
     bool ReceiveOfferNotifications,
     bool ReceiveUpdateNotifications,

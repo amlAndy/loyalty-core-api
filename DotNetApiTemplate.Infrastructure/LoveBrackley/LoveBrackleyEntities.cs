@@ -41,6 +41,33 @@ public sealed class LoyaltyCardEntity
     public MemberProfileEntity? MemberProfile { get; set; }
 }
 
+public sealed class TownEntity
+{
+    public Guid Id { get; set; }
+    public string Name { get; set; } = string.Empty;
+    public string Slug { get; set; } = string.Empty;
+    public string DisplayName { get; set; } = string.Empty;
+    public string? PrimaryDomain { get; set; }
+    public bool IsActive { get; set; }
+    public int DisplayOrder { get; set; }
+    public DateTimeOffset CreatedUtc { get; set; }
+    public DateTimeOffset? UpdatedUtc { get; set; }
+    public ICollection<BusinessProfileEntity> BusinessProfiles { get; set; } = [];
+}
+
+public sealed class BusinessCategoryEntity
+{
+    public Guid Id { get; set; }
+    public string Name { get; set; } = string.Empty;
+    public string Slug { get; set; } = string.Empty;
+    public string? Description { get; set; }
+    public bool IsActive { get; set; }
+    public int DisplayOrder { get; set; }
+    public DateTimeOffset CreatedUtc { get; set; }
+    public DateTimeOffset? UpdatedUtc { get; set; }
+    public ICollection<BusinessProfileEntity> BusinessProfiles { get; set; } = [];
+}
+
 public sealed class BusinessProfileEntity
 {
     public Guid Id { get; set; }
@@ -48,6 +75,8 @@ public sealed class BusinessProfileEntity
     public string Name { get; set; } = string.Empty;
     public string BrandReference { get; set; } = string.Empty;
     public string Category { get; set; } = string.Empty;
+    public Guid TownId { get; set; }
+    public Guid BusinessCategoryId { get; set; }
     public string Description { get; set; } = string.Empty;
     public string LocationName { get; set; } = string.Empty;
     public string AddressLine1 { get; set; } = string.Empty;
@@ -63,6 +92,8 @@ public sealed class BusinessProfileEntity
     public DateTimeOffset CreatedUtc { get; set; }
     public DateTimeOffset UpdatedUtc { get; set; }
     public ApplicationUser? OwnerUser { get; set; }
+    public TownEntity? TownLookup { get; set; }
+    public BusinessCategoryEntity? BusinessCategory { get; set; }
     public ICollection<BusinessLocationEntity> Locations { get; set; } = [];
     public ICollection<BusinessStaffAccessEntity> StaffAccess { get; set; } = [];
     public ICollection<LoyaltyTransactionEntity> LoyaltyTransactions { get; set; } = [];

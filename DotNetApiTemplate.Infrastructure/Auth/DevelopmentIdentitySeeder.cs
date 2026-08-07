@@ -14,6 +14,14 @@ public sealed class DevelopmentIdentitySeeder
     private const string ActiveStatus = "Active";
     private const string PermissionClaimType = "permission";
     private const string LocalDevelopmentPassword = "Password123!";
+    private static readonly Guid BrackleyTownId = Guid.Parse("10000000-0000-0000-0000-000000000001");
+    private static readonly Guid FoodAndDrinkCategoryId = Guid.Parse("20000000-0000-0000-0000-000000000001");
+    private static readonly Guid RetailCategoryId = Guid.Parse("20000000-0000-0000-0000-000000000002");
+    private static readonly Guid FloristCategoryId = Guid.Parse("20000000-0000-0000-0000-000000000003");
+    private static readonly Guid BooksCategoryId = Guid.Parse("20000000-0000-0000-0000-000000000004");
+    private static readonly Guid HomeAndGiftCategoryId = Guid.Parse("20000000-0000-0000-0000-000000000005");
+    private static readonly Guid CoffeeShopCategoryId = Guid.Parse("20000000-0000-0000-0000-000000000006");
+    private static readonly Guid GroceriesCategoryId = Guid.Parse("20000000-0000-0000-0000-000000000007");
     private static readonly string[] LegacyTemplateRoleNames =
     [
         "Super User",
@@ -611,13 +619,15 @@ public sealed class DevelopmentIdentitySeeder
 
     private async Task SeedLoveBrackleyAsync(CancellationToken cancellationToken)
     {
+        var created = new DateTimeOffset(2026, 3, 1, 9, 0, 0, TimeSpan.Zero);
+        await SeedLoveBrackleyLookupsAsync(created, cancellationToken);
+
         if (await _dbContext.MemberProfiles.AnyAsync(cancellationToken))
         {
             return;
         }
 
         var users = await _dbContext.Users.ToDictionaryAsync(user => user.Email!, user => user.Id, StringComparer.OrdinalIgnoreCase, cancellationToken);
-        var created = new DateTimeOffset(2026, 3, 1, 9, 0, 0, TimeSpan.Zero);
         var members = new[]
         {
             CreateMember("11111111-1111-1111-1111-111111111101", users["sophie.taylor@love-brackley.local"], "Sophie Taylor", "sophie.taylor@love-brackley.local", "LBM-1001", "LB-CARD-1001", 1285),
@@ -641,13 +651,13 @@ public sealed class DevelopmentIdentitySeeder
 
         var businesses = new[]
         {
-            CreateBusiness("22222222-2222-2222-2222-222222222201", users["owner.marketkitchen@love-brackley.local"], "Brackley Market Kitchen", "LB-BIZ-2001", "Food & Drink", "Seasonal lunches and local produce from the market square.", "Market Square", "10 Market Place", "NN13 7AB", true),
-            CreateBusiness("22222222-2222-2222-2222-222222222202", users["owner.oldtownbooks@love-brackley.local"], "Old Town Books", "LB-BIZ-2002", "Books & Gifts", "Independent bookseller with gifts, cards, and community events.", "Old Town", "4 High Street", "NN13 7DW", true),
-            CreateBusiness("22222222-2222-2222-2222-222222222203", users["owner.florist@love-brackley.local"], "Love Brackley Florist", "LB-BIZ-2003", "Florist", "Fresh flowers and arrangements for local homes and events.", "Town Centre", "18 Bridge Street", "NN13 7EP", true),
-            CreateBusiness("22222222-2222-2222-2222-222222222204", users["owner.willowcoffee@love-brackley.local"], "Willow Coffee House", "LB-BIZ-2004", "Coffee", "Neighbourhood coffee, cakes, and light brunches.", "Willow Parade", "2 Willow Road", "NN13 7FA", false),
-            CreateBusiness("22222222-2222-2222-2222-222222222205", users["owner.homegift@love-brackley.local"], "Brackley Home & Gift", "LB-BIZ-2005", "Homeware", "Home accessories, candles, and thoughtful local gifts.", "High Street", "22 High Street", "NN13 7DS", false),
-            CreateBusiness("22222222-2222-2222-2222-222222222206", users["owner.foxpantry@love-brackley.local"], "Fox Lane Pantry", "LB-BIZ-2006", "Deli", "Pantry staples, deli counter, and local hampers.", "Fox Lane", "7 Fox Lane", "NN13 7FN", false),
-            CreateBusiness("22222222-2222-2222-2222-222222222207", users["owner.riverside@love-brackley.local"], "Riverside Market Kitchen", "LB-BIZ-2007", "Food & Drink", "Riverside breakfasts, lunches, and community suppers.", "Riverside", "1 Riverside Walk", "NN13 7GR", true)
+            CreateBusiness("22222222-2222-2222-2222-222222222201", users["owner.marketkitchen@love-brackley.local"], "Brackley Market Kitchen", "LB-BIZ-2001", "Food & Drink", FoodAndDrinkCategoryId, "Seasonal lunches and local produce from the market square.", "Market Square", "10 Market Place", "NN13 7AB", true),
+            CreateBusiness("22222222-2222-2222-2222-222222222202", users["owner.oldtownbooks@love-brackley.local"], "Old Town Books", "LB-BIZ-2002", "Books & Gifts", BooksCategoryId, "Independent bookseller with gifts, cards, and community events.", "Old Town", "4 High Street", "NN13 7DW", true),
+            CreateBusiness("22222222-2222-2222-2222-222222222203", users["owner.florist@love-brackley.local"], "Love Brackley Florist", "LB-BIZ-2003", "Florist", FloristCategoryId, "Fresh flowers and arrangements for local homes and events.", "Town Centre", "18 Bridge Street", "NN13 7EP", true),
+            CreateBusiness("22222222-2222-2222-2222-222222222204", users["owner.willowcoffee@love-brackley.local"], "Willow Coffee House", "LB-BIZ-2004", "Coffee", CoffeeShopCategoryId, "Neighbourhood coffee, cakes, and light brunches.", "Willow Parade", "2 Willow Road", "NN13 7FA", false),
+            CreateBusiness("22222222-2222-2222-2222-222222222205", users["owner.homegift@love-brackley.local"], "Brackley Home & Gift", "LB-BIZ-2005", "Homeware", HomeAndGiftCategoryId, "Home accessories, candles, and thoughtful local gifts.", "High Street", "22 High Street", "NN13 7DS", false),
+            CreateBusiness("22222222-2222-2222-2222-222222222206", users["owner.foxpantry@love-brackley.local"], "Fox Lane Pantry", "LB-BIZ-2006", "Deli", GroceriesCategoryId, "Pantry staples, deli counter, and local hampers.", "Fox Lane", "7 Fox Lane", "NN13 7FN", false),
+            CreateBusiness("22222222-2222-2222-2222-222222222207", users["owner.riverside@love-brackley.local"], "Riverside Market Kitchen", "LB-BIZ-2007", "Food & Drink", FoodAndDrinkCategoryId, "Riverside breakfasts, lunches, and community suppers.", "Riverside", "1 Riverside Walk", "NN13 7GR", true)
         };
         _dbContext.BusinessProfiles.AddRange(businesses);
         _dbContext.BusinessLocations.AddRange(businesses.Select((business, index) => new BusinessLocationEntity
@@ -754,7 +764,78 @@ public sealed class DevelopmentIdentitySeeder
         };
     }
 
-    private static BusinessProfileEntity CreateBusiness(string id, string ownerUserId, string name, string reference, string category, string description, string location, string address, string postcode, bool featured)
+    private async Task SeedLoveBrackleyLookupsAsync(DateTimeOffset created, CancellationToken cancellationToken)
+    {
+        var town = await _dbContext.Towns.SingleOrDefaultAsync(candidate => candidate.Id == BrackleyTownId, cancellationToken);
+        if (town is null)
+        {
+            _dbContext.Towns.Add(new TownEntity
+            {
+                Id = BrackleyTownId,
+                Name = "Brackley",
+                Slug = "brackley",
+                DisplayName = "Brackley",
+                IsActive = true,
+                DisplayOrder = 1,
+                CreatedUtc = created
+            });
+        }
+
+        var categories = new[]
+        {
+            CreateCategory(FoodAndDrinkCategoryId, "Food and Drink", "food-and-drink", "Restaurants, cafés, delis, and hospitality.", 1, created),
+            CreateCategory(RetailCategoryId, "Retail", "retail", "Independent shops and local retail services.", 2, created),
+            CreateCategory(FloristCategoryId, "Florist", "florist", "Florists and flower arrangement specialists.", 3, created),
+            CreateCategory(BooksCategoryId, "Books", "books", "Bookshops, cards, and reading events.", 4, created),
+            CreateCategory(HomeAndGiftCategoryId, "Home and Gift", "home-and-gift", "Homeware, gifts, and local presents.", 5, created),
+            CreateCategory(CoffeeShopCategoryId, "Coffee Shop", "coffee-shop", "Coffee, cakes, brunch, and light refreshments.", 6, created),
+            CreateCategory(GroceriesCategoryId, "Groceries", "groceries", "Grocers, pantries, delis, and local provisions.", 7, created)
+        };
+
+        foreach (var category in categories)
+        {
+            if (!await _dbContext.BusinessCategories.AnyAsync(candidate => candidate.Id == category.Id, cancellationToken))
+            {
+                _dbContext.BusinessCategories.Add(category);
+            }
+        }
+
+        var existingBusinesses = await _dbContext.BusinessProfiles.ToArrayAsync(cancellationToken);
+        foreach (var business in existingBusinesses)
+        {
+            business.TownId = BrackleyTownId;
+            business.BusinessCategoryId = GetSeedCategoryId(business.Category, business.Name);
+        }
+
+        await _dbContext.SaveChangesAsync(cancellationToken);
+    }
+
+    private static BusinessCategoryEntity CreateCategory(Guid id, string name, string slug, string description, int displayOrder, DateTimeOffset created)
+    {
+        return new BusinessCategoryEntity
+        {
+            Id = id,
+            Name = name,
+            Slug = slug,
+            Description = description,
+            IsActive = true,
+            DisplayOrder = displayOrder,
+            CreatedUtc = created
+        };
+    }
+
+    private static Guid GetSeedCategoryId(string category, string businessName)
+    {
+        if (category.Contains("Florist", StringComparison.OrdinalIgnoreCase)) return FloristCategoryId;
+        if (category.Contains("Book", StringComparison.OrdinalIgnoreCase)) return BooksCategoryId;
+        if (category.Contains("Coffee", StringComparison.OrdinalIgnoreCase)) return CoffeeShopCategoryId;
+        if (category.Contains("Home", StringComparison.OrdinalIgnoreCase) || category.Contains("Gift", StringComparison.OrdinalIgnoreCase)) return HomeAndGiftCategoryId;
+        if (category.Contains("Deli", StringComparison.OrdinalIgnoreCase) || category.Contains("Grocery", StringComparison.OrdinalIgnoreCase) || businessName.Contains("Pantry", StringComparison.OrdinalIgnoreCase)) return GroceriesCategoryId;
+        if (category.Contains("Retail", StringComparison.OrdinalIgnoreCase)) return RetailCategoryId;
+        return FoodAndDrinkCategoryId;
+    }
+
+    private static BusinessProfileEntity CreateBusiness(string id, string ownerUserId, string name, string reference, string category, Guid businessCategoryId, string description, string location, string address, string postcode, bool featured)
     {
         var created = new DateTimeOffset(2026, 3, 1, 9, 0, 0, TimeSpan.Zero);
         return new BusinessProfileEntity
@@ -764,6 +845,8 @@ public sealed class DevelopmentIdentitySeeder
             Name = name,
             BrandReference = reference,
             Category = category,
+            TownId = BrackleyTownId,
+            BusinessCategoryId = businessCategoryId,
             Description = description,
             LocationName = location,
             AddressLine1 = address,

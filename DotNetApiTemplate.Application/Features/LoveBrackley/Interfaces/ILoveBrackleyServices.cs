@@ -16,9 +16,15 @@ public interface IMemberLoyaltyService
     Task<FavoritedBusinessDto?> UpdateFavoritePreferencesAsync(string? userId, Guid businessId, UpdateMemberFavoritePreferencesRequest request, CancellationToken cancellationToken);
 }
 
+public interface ILoveBrackleyLookupService
+{
+    Task<IReadOnlyList<TownSummaryDto>> GetTownsAsync(CancellationToken cancellationToken);
+    Task<IReadOnlyList<BusinessCategoryDto>> GetBusinessCategoriesAsync(CancellationToken cancellationToken);
+}
+
 public interface IParticipatingBusinessService
 {
-    Task<PagedResponse<ParticipatingBusinessSummaryDto>> SearchAsync(string? category, string? searchTerm, bool? featured, int page, int pageSize, CancellationToken cancellationToken);
+    Task<PagedResponse<ParticipatingBusinessSummaryDto>> SearchAsync(string? category, string? townSlug, string? searchTerm, bool? featured, int page, int pageSize, CancellationToken cancellationToken);
 }
 
 public interface IBusinessLoyaltyService

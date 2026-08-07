@@ -9,7 +9,7 @@ using Microsoft.EntityFrameworkCore;
 
 namespace DotNetApiTemplate.Infrastructure.LoveBrackley;
 
-public sealed class LoveBrackleyService : IMemberLoyaltyService, IParticipatingBusinessService, IBusinessLoyaltyService, IAdminLoveBrackleyService
+public sealed class LoveBrackleyService : IMemberLoyaltyService, ILoveBrackleyLookupService, IParticipatingBusinessService, IBusinessLoyaltyService, IAdminLoveBrackleyService
 {
     private const string ActiveStatus = "Active";
     private const string CompletedStatus = "Completed";
@@ -161,7 +161,27 @@ public sealed class LoveBrackleyService : IMemberLoyaltyService, IParticipatingB
         return ToMemberSettings(member);
     }
 
-    public async Task<PagedResponse<ParticipatingBusinessSummaryDto>> SearchAsync(string? category, string? searchTerm, bool? featured, int page, int pageSize, CancellationToken cancellationToken)
+    public async Task<IReadOnlyList<TownSummaryDto>> GetTownsAsync(CancellationToken cancellationToken)
+    {
+        return await _dbContext.Towns.AsNoTracking()
+            .Where(town => town.IsActive)
+            .OrderBy(town => town.DisplayOrder)
+            .ThenBy(town => town.Name)
+            .Select(town => new TownSummaryDto(town.Id, town.Name, town.Slug, town.DisplayName, town.PrimaryDomain))
+            .ToListAsync(cancellationToken);
+    }
+
+    public async Task<IReadOnlyList<BusinessCategoryDto>> GetBusinessCategoriesAsync(CancellationToken cancellationToken)
+    {
+        return await _dbContext.BusinessCategories.AsNoTracking()
+            .Where(category => category.IsActive)
+            .OrderBy(category => category.DisplayOrder)
+            .ThenBy(category => category.Name)
+            .Select(category => new BusinessCategoryDto(category.Id, category.Name, category.Slug, category.Description))
+            .ToListAsync(cancellationToken);
+    }
+
+    public async Task<PagedResponse<ParticipatingBusinessSummaryDto>> SearchAsync(string? category, string? townSlug, string? searchTerm, bool? featured, int page, int pageSize, CancellationToken cancellationToken)
     {
         page = NormalizePage(page);
         pageSize = NormalizePageSize(pageSize);
@@ -170,7 +190,14 @@ public sealed class LoveBrackleyService : IMemberLoyaltyService, IParticipatingB
 
         if (!string.IsNullOrWhiteSpace(category))
         {
-            query = query.Where(business => business.Category == category);
+            var categoryFilter = category.Trim();
+            query = query.Where(business => business.BusinessCategory!.Slug == categoryFilter || business.BusinessCategory.Name == categoryFilter || business.Category == categoryFilter);
+        }
+
+        if (!string.IsNullOrWhiteSpace(townSlug))
+        {
+            var townFilter = townSlug.Trim();
+            query = query.Where(business => business.TownLookup!.Slug == townFilter);
         }
 
         if (!string.IsNullOrWhiteSpace(searchTerm))
@@ -196,6 +223,12 @@ public sealed class LoveBrackleyService : IMemberLoyaltyService, IParticipatingB
                 business.Description,
                 business.LocationName,
                 business.Town,
+                business.TownId,
+                business.TownLookup!.DisplayName,
+                business.TownLookup.Slug,
+                business.BusinessCategoryId,
+                business.BusinessCategory!.Name,
+                business.BusinessCategory.Slug,
                 business.Featured,
                 business.TradingHoursSummary))
             .ToListAsync(cancellationToken);
@@ -583,19 +616,22 @@ public sealed class LoveBrackleyService : IMemberLoyaltyService, IParticipatingB
 
     public async Task<BusinessSettingsDto?> GetSettingsAsync(Guid businessId, CancellationToken cancellationToken)
     {
-        var business = await _dbContext.BusinessProfiles.AsNoTracking().SingleOrDefaultAsync(candidate => candidate.Id == businessId, cancellationToken);
+        var business = await BusinessProfileLookupQuery().SingleOrDefaultAsync(candidate => candidate.Id == businessId, cancellationToken);
         return business is null ? null : ToBusinessSettings(business);
     }
 
     public async Task<BusinessSettingsDto?> UpdateSettingsAsync(Guid businessId, UpdateBusinessSettingsRequest request, CancellationToken cancellationToken)
     {
-        var business = await _dbContext.BusinessProfiles.SingleOrDefaultAsync(candidate => candidate.Id == businessId, cancellationToken);
+        var business = await _dbContext.BusinessProfiles
+            .Include(candidate => candidate.TownLookup)
+            .Include(candidate => candidate.BusinessCategory)
+            .SingleOrDefaultAsync(candidate => candidate.Id == businessId, cancellationToken);
         if (business is null)
         {
             return null;
         }
 
-        ApplyBusinessSettings(business, request);
+        await ApplyBusinessSettingsAsync(business, request, cancellationToken);
         await _dbContext.SaveChangesAsync(cancellationToken);
         return ToBusinessSettings(business);
     }
@@ -625,10 +661,10 @@ public sealed class LoveBrackleyService : IMemberLoyaltyService, IParticipatingB
     {
         page = NormalizePage(page);
         pageSize = NormalizePageSize(pageSize);
-        var query = _dbContext.BusinessProfiles.AsNoTracking().AsQueryable();
+        var query = BusinessProfileLookupQuery();
         if (!string.IsNullOrWhiteSpace(searchTerm))
         {
-            query = query.Where(business => business.Name.Contains(searchTerm) || business.BrandReference.Contains(searchTerm) || business.Category.Contains(searchTerm));
+            query = query.Where(business => business.Name.Contains(searchTerm) || business.BrandReference.Contains(searchTerm) || business.Category.Contains(searchTerm) || business.BusinessCategory!.Name.Contains(searchTerm));
         }
 
         if (!string.IsNullOrWhiteSpace(status))
@@ -637,7 +673,8 @@ public sealed class LoveBrackleyService : IMemberLoyaltyService, IParticipatingB
         }
 
         var totalCount = await query.CountAsync(cancellationToken);
-        var items = await query.OrderBy(business => business.Name).Skip((page - 1) * pageSize).Take(pageSize).Select(business => ToAdminBusinessDto(business)).ToListAsync(cancellationToken);
+        var businesses = await query.OrderBy(business => business.Name).Skip((page - 1) * pageSize).Take(pageSize).ToListAsync(cancellationToken);
+        var items = businesses.Select(ToAdminBusinessDto).ToList();
         return new PagedResponse<AdminBusinessDto>(items, page, pageSize, totalCount);
     }
 
@@ -653,7 +690,7 @@ public sealed class LoveBrackleyService : IMemberLoyaltyService, IParticipatingB
             CreatedUtc = now,
             UpdatedUtc = now
         };
-        ApplyBusinessCreateFields(business, request);
+        await ApplyBusinessCreateFieldsAsync(business, request, cancellationToken);
         _dbContext.BusinessProfiles.Add(business);
         AddAdminAudit(actorUserId, "BusinessProfile", business.Id.ToString(), "Create", $"Created business {business.Name}.", null);
         await _dbContext.SaveChangesAsync(cancellationToken);
@@ -1030,6 +1067,13 @@ public sealed class LoveBrackleyService : IMemberLoyaltyService, IParticipatingB
         return await TransactionQuery().Where(transaction => transaction.Id == transactionId).Select(transaction => ToTransactionDto(transaction)).SingleOrDefaultAsync(cancellationToken);
     }
 
+    private IQueryable<BusinessProfileEntity> BusinessProfileLookupQuery()
+    {
+        return _dbContext.BusinessProfiles.AsNoTracking()
+            .Include(business => business.TownLookup)
+            .Include(business => business.BusinessCategory);
+    }
+
     private async Task<PagedResponse<BusinessPayoutDto>> SearchPayoutsInternalAsync(Guid? businessId, string? status, int page, int pageSize, CancellationToken cancellationToken)
     {
         page = NormalizePage(page);
@@ -1121,12 +1165,48 @@ public sealed class LoveBrackleyService : IMemberLoyaltyService, IParticipatingB
 
     private static BusinessSettingsDto ToBusinessSettings(BusinessProfileEntity business)
     {
-        return new BusinessSettingsDto(business.Id, business.Name, business.Category, business.Description, business.LocationName, business.AddressLine1, business.AddressLine2, business.Town, business.Postcode, business.ContactEmail, business.SupportEmail, business.PrimaryContactName, business.TradingHoursSummary, business.ParticipationStatus, business.Featured);
+        return new BusinessSettingsDto(
+            business.Id,
+            business.Name,
+            business.Category,
+            business.BusinessCategoryId,
+            business.BusinessCategory?.Name ?? business.Category,
+            business.BusinessCategory?.Slug ?? ToSlug(business.Category),
+            business.Description,
+            business.LocationName,
+            business.AddressLine1,
+            business.AddressLine2,
+            business.Town,
+            business.TownId,
+            business.TownLookup?.DisplayName ?? business.Town,
+            business.TownLookup?.Slug ?? ToSlug(business.Town),
+            business.Postcode,
+            business.ContactEmail,
+            business.SupportEmail,
+            business.PrimaryContactName,
+            business.TradingHoursSummary,
+            business.ParticipationStatus,
+            business.Featured);
     }
 
     private static AdminBusinessDto ToAdminBusinessDto(BusinessProfileEntity business)
     {
-        return new AdminBusinessDto(business.Id, business.Name, business.BrandReference, business.Category, business.ParticipationStatus, business.Featured, business.OwnerUserId, business.CreatedUtc, business.UpdatedUtc);
+        return new AdminBusinessDto(
+            business.Id,
+            business.Name,
+            business.BrandReference,
+            business.Category,
+            business.BusinessCategoryId,
+            business.BusinessCategory?.Name ?? business.Category,
+            business.BusinessCategory?.Slug ?? ToSlug(business.Category),
+            business.TownId,
+            business.TownLookup?.DisplayName ?? business.Town,
+            business.TownLookup?.Slug ?? ToSlug(business.Town),
+            business.ParticipationStatus,
+            business.Featured,
+            business.OwnerUserId,
+            business.CreatedUtc,
+            business.UpdatedUtc);
     }
 
     private static AdminMemberDto ToAdminMemberDto(MemberProfileEntity member)
@@ -1149,10 +1229,16 @@ public sealed class LoveBrackleyService : IMemberLoyaltyService, IParticipatingB
         return new PointsRuleDto(rule.Id, rule.Name, rule.EarnPointsPerPound, rule.PencePerPoint, rule.MaxRedemptionPercentage, rule.IsActive, rule.EffectiveFromUtc, rule.EffectiveToUtc, rule.CreatedByUserId, rule.CreatedUtc);
     }
 
-    private static void ApplyBusinessSettings(BusinessProfileEntity business, UpdateBusinessSettingsRequest request)
+    private async Task ApplyBusinessSettingsAsync(BusinessProfileEntity business, UpdateBusinessSettingsRequest request, CancellationToken cancellationToken)
     {
+        var town = await ResolveTownAsync(request.Town, cancellationToken);
+        var category = await ResolveBusinessCategoryAsync(request.Category, cancellationToken);
         business.Name = request.Name.Trim();
         business.Category = request.Category.Trim();
+        business.TownId = town.Id;
+        business.BusinessCategoryId = category.Id;
+        business.TownLookup = town;
+        business.BusinessCategory = category;
         business.Description = request.Description.Trim();
         business.LocationName = request.LocationName.Trim();
         business.AddressLine1 = request.AddressLine1.Trim();
@@ -1167,10 +1253,16 @@ public sealed class LoveBrackleyService : IMemberLoyaltyService, IParticipatingB
         business.UpdatedUtc = DateTimeOffset.UtcNow;
     }
 
-    private static void ApplyBusinessCreateFields(BusinessProfileEntity business, CreateAdminBusinessRequest request)
+    private async Task ApplyBusinessCreateFieldsAsync(BusinessProfileEntity business, CreateAdminBusinessRequest request, CancellationToken cancellationToken)
     {
+        var town = await ResolveTownAsync(request.Town, cancellationToken);
+        var category = await ResolveBusinessCategoryAsync(request.Category, cancellationToken);
         business.Name = request.Name.Trim();
         business.Category = request.Category.Trim();
+        business.TownId = town.Id;
+        business.BusinessCategoryId = category.Id;
+        business.TownLookup = town;
+        business.BusinessCategory = category;
         business.Description = request.Description.Trim();
         business.LocationName = request.LocationName.Trim();
         business.AddressLine1 = request.AddressLine1.Trim();
@@ -1182,6 +1274,29 @@ public sealed class LoveBrackleyService : IMemberLoyaltyService, IParticipatingB
         business.PrimaryContactName = request.PrimaryContactName.Trim();
         business.TradingHoursSummary = request.TradingHoursSummary.Trim();
         business.Featured = request.Featured;
+    }
+
+    private async Task<TownEntity> ResolveTownAsync(string? value, CancellationToken cancellationToken)
+    {
+        var trimmed = value?.Trim();
+        var slug = ToSlug(trimmed ?? string.Empty);
+        var town = await _dbContext.Towns
+            .FirstOrDefaultAsync(candidate => candidate.Slug == slug || candidate.Name == trimmed || candidate.DisplayName == trimmed, cancellationToken)
+            ?? await _dbContext.Towns.FirstOrDefaultAsync(candidate => candidate.Slug == "brackley", cancellationToken)
+            ?? await _dbContext.Towns.OrderBy(candidate => candidate.DisplayOrder).ThenBy(candidate => candidate.Name).FirstOrDefaultAsync(cancellationToken);
+
+        return town ?? throw new ValidationException([new ValidationFailure("town", "A valid town is required.")]);
+    }
+
+    private async Task<BusinessCategoryEntity> ResolveBusinessCategoryAsync(string? value, CancellationToken cancellationToken)
+    {
+        var trimmed = value?.Trim();
+        var slug = ToSlug(trimmed ?? string.Empty);
+        var category = await _dbContext.BusinessCategories
+            .FirstOrDefaultAsync(candidate => candidate.Slug == slug || candidate.Name == trimmed, cancellationToken)
+            ?? await _dbContext.BusinessCategories.OrderBy(candidate => candidate.DisplayOrder).ThenBy(candidate => candidate.Name).FirstOrDefaultAsync(cancellationToken);
+
+        return category ?? throw new ValidationException([new ValidationFailure("category", "A valid business category is required.")]);
     }
 
     private void AddAdminAudit(string? actorUserId, string entityType, string entityId, string action, string summary, string? reason)
@@ -1223,6 +1338,32 @@ public sealed class LoveBrackleyService : IMemberLoyaltyService, IParticipatingB
 
     private static string? TrimToNull(string? value) => string.IsNullOrWhiteSpace(value) ? null : value.Trim();
 
+    private static string ToSlug(string value)
+    {
+        value = value.Replace("&", " and ", StringComparison.Ordinal);
+        var builder = new StringBuilder(value.Length);
+        var pendingSeparator = false;
+        foreach (var character in value.Trim().ToLowerInvariant())
+        {
+            if (char.IsLetterOrDigit(character))
+            {
+                if (pendingSeparator && builder.Length > 0)
+                {
+                    builder.Append('-');
+                }
+
+                builder.Append(character);
+                pendingSeparator = false;
+            }
+            else if (builder.Length > 0)
+            {
+                pendingSeparator = true;
+            }
+        }
+
+        return builder.ToString();
+    }
+
     private static void ThrowValidation(string propertyName, string message)
     {
         throw new ValidationException([new ValidationFailure(propertyName, message)]);
@@ -1242,6 +1383,8 @@ public sealed class LoveBrackleyService : IMemberLoyaltyService, IParticipatingB
 
         var businessTask = _dbContext.BusinessProfiles
             .AsNoTracking()
+            .Include(b => b.TownLookup)
+            .Include(b => b.BusinessCategory)
             .FirstOrDefaultAsync(b => b.Id == businessId, cancellationToken);
 
         await Task.WhenAll(memberTask, businessTask);
@@ -1328,6 +1471,9 @@ public sealed class LoveBrackleyService : IMemberLoyaltyService, IParticipatingB
             .AsNoTracking()
             .Where(p => p.MemberProfile!.UserId == userId && p.RemovedUtc == null)
             .Include(p => p.BusinessProfile)
+                .ThenInclude(b => b!.TownLookup)
+            .Include(p => p.BusinessProfile)
+                .ThenInclude(b => b!.BusinessCategory)
             .OrderByDescending(p => p.SavedUtc)
             .ToListAsync(cancellationToken);
 
@@ -1376,6 +1522,9 @@ public sealed class LoveBrackleyService : IMemberLoyaltyService, IParticipatingB
 
         var preference = await _dbContext.MemberShopPreferences
             .Include(p => p.BusinessProfile)
+                .ThenInclude(b => b!.TownLookup)
+            .Include(p => p.BusinessProfile)
+                .ThenInclude(b => b!.BusinessCategory)
             .FirstOrDefaultAsync(p => p.MemberProfileId == member.Id && p.BusinessProfileId == businessId && p.RemovedUtc == null, cancellationToken);
 
         if (preference is null)
@@ -1402,8 +1551,14 @@ public sealed class LoveBrackleyService : IMemberLoyaltyService, IParticipatingB
             business.Id,
             business.Name,
             business.Category,
+            business.BusinessCategoryId,
+            business.BusinessCategory?.Name ?? business.Category,
+            business.BusinessCategory?.Slug ?? ToSlug(business.Category),
             business.LocationName,
             business.Town,
+            business.TownId,
+            business.TownLookup?.DisplayName ?? business.Town,
+            business.TownLookup?.Slug ?? ToSlug(business.Town),
             business.Featured,
             preference.ReceiveOfferNotifications,
             preference.ReceiveUpdateNotifications,

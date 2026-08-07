@@ -23,6 +23,7 @@ public sealed class ApplicationDbContext : IdentityDbContext<ApplicationUser, Ap
     public DbSet<AdminReviewCaseEntity> AdminReviewCases => Set<AdminReviewCaseEntity>();
     public DbSet<BusinessAlertEntity> BusinessAlerts => Set<BusinessAlertEntity>();
     public DbSet<BusinessLocationEntity> BusinessLocations => Set<BusinessLocationEntity>();
+    public DbSet<BusinessCategoryEntity> BusinessCategories => Set<BusinessCategoryEntity>();
     public DbSet<BusinessPayoutPeriodEntity> BusinessPayoutPeriods => Set<BusinessPayoutPeriodEntity>();
     public DbSet<BusinessProfileEntity> BusinessProfiles => Set<BusinessProfileEntity>();
     public DbSet<BusinessStaffAccessEntity> BusinessStaffAccesses => Set<BusinessStaffAccessEntity>();
@@ -32,6 +33,7 @@ public sealed class ApplicationDbContext : IdentityDbContext<ApplicationUser, Ap
     public DbSet<MemberProfileEntity> MemberProfiles => Set<MemberProfileEntity>();
     public DbSet<MemberShopPreferenceEntity> MemberShopPreferences => Set<MemberShopPreferenceEntity>();
     public DbSet<SecurityAuditEntryEntity> SecurityAuditEntries => Set<SecurityAuditEntryEntity>();
+    public DbSet<TownEntity> Towns => Set<TownEntity>();
 
     protected override void OnModelCreating(ModelBuilder builder)
     {
@@ -234,6 +236,29 @@ public sealed class ApplicationDbContext : IdentityDbContext<ApplicationUser, Ap
                 .OnDelete(DeleteBehavior.Cascade);
         });
 
+        builder.Entity<TownEntity>(entity =>
+        {
+            entity.ToTable("Towns");
+            entity.HasKey(town => town.Id);
+            entity.Property(town => town.Name).IsRequired().HasMaxLength(150);
+            entity.Property(town => town.Slug).IsRequired().HasMaxLength(150);
+            entity.Property(town => town.DisplayName).IsRequired().HasMaxLength(150);
+            entity.Property(town => town.PrimaryDomain).HasMaxLength(250);
+            entity.HasIndex(town => town.Slug).IsUnique();
+            entity.HasIndex(town => new { town.IsActive, town.DisplayOrder });
+        });
+
+        builder.Entity<BusinessCategoryEntity>(entity =>
+        {
+            entity.ToTable("BusinessCategories");
+            entity.HasKey(category => category.Id);
+            entity.Property(category => category.Name).IsRequired().HasMaxLength(150);
+            entity.Property(category => category.Slug).IsRequired().HasMaxLength(150);
+            entity.Property(category => category.Description).HasMaxLength(500);
+            entity.HasIndex(category => category.Slug).IsUnique();
+            entity.HasIndex(category => new { category.IsActive, category.DisplayOrder });
+        });
+
         builder.Entity<BusinessProfileEntity>(entity =>
         {
             entity.ToTable("BusinessProfiles");
@@ -254,10 +279,20 @@ public sealed class ApplicationDbContext : IdentityDbContext<ApplicationUser, Ap
             entity.Property(business => business.ParticipationStatus).IsRequired().HasMaxLength(50);
             entity.HasIndex(business => business.BrandReference).IsUnique();
             entity.HasIndex(business => business.OwnerUserId);
+            entity.HasIndex(business => business.TownId);
+            entity.HasIndex(business => business.BusinessCategoryId);
             entity.HasIndex(business => new { business.ParticipationStatus, business.Featured });
             entity.HasOne(business => business.OwnerUser)
                 .WithMany()
                 .HasForeignKey(business => business.OwnerUserId)
+                .OnDelete(DeleteBehavior.Restrict);
+            entity.HasOne(business => business.TownLookup)
+                .WithMany(town => town.BusinessProfiles)
+                .HasForeignKey(business => business.TownId)
+                .OnDelete(DeleteBehavior.Restrict);
+            entity.HasOne(business => business.BusinessCategory)
+                .WithMany(category => category.BusinessProfiles)
+                .HasForeignKey(business => business.BusinessCategoryId)
                 .OnDelete(DeleteBehavior.Restrict);
         });
 

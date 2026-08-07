@@ -30,8 +30,8 @@ public static class InfrastructureServiceCollectionExtensions
         this IServiceCollection services,
         IConfiguration configuration)
     {
-        var connectionString = configuration.GetConnectionString("DefaultConnection")
-            ?? throw new InvalidOperationException("ConnectionStrings:DefaultConnection is not configured.");
+        var connectionString = configuration.GetConnectionString("LoyaltyCoreDb")
+            ?? throw new InvalidOperationException("ConnectionStrings:LoyaltyCoreDb is not configured.");
         var jwtIssuer = configuration["Jwt:Issuer"]
             ?? throw new InvalidOperationException("Jwt:Issuer is not configured.");
         var jwtAudience = configuration["Jwt:Audience"]
@@ -90,6 +90,7 @@ public static class InfrastructureServiceCollectionExtensions
         services.AddScoped<IAdminUserRepository, AdminUserRepository>();
         services.AddScoped<LoveBrackleyService>();
         services.AddScoped<IMemberLoyaltyService>(provider => provider.GetRequiredService<LoveBrackleyService>());
+        services.AddScoped<ILoveBrackleyLookupService>(provider => provider.GetRequiredService<LoveBrackleyService>());
         services.AddScoped<IParticipatingBusinessService>(provider => provider.GetRequiredService<LoveBrackleyService>());
         services.AddScoped<IBusinessLoyaltyService>(provider => provider.GetRequiredService<LoveBrackleyService>());
         services.AddScoped<IAdminLoveBrackleyService>(provider => provider.GetRequiredService<LoveBrackleyService>());

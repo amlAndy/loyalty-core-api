@@ -18,13 +18,14 @@ public sealed class ParticipatingBusinessesController : ControllerBase
     [HttpGet]
     public async Task<ActionResult<DataResponse<PagedResponse<ParticipatingBusinessSummaryDto>>>> Search(
         [FromQuery] string? category,
+        [FromQuery] string? townSlug,
         [FromQuery] string? searchTerm,
         [FromQuery] bool? featured,
         [FromQuery] int page = 1,
         [FromQuery] int pageSize = 20,
         CancellationToken cancellationToken = default)
     {
-        var result = await _participatingBusinessService.SearchAsync(category, searchTerm, featured, page, pageSize, cancellationToken);
+        var result = await _participatingBusinessService.SearchAsync(category, townSlug, searchTerm, featured, page, pageSize, cancellationToken);
         return Ok(new DataResponse<PagedResponse<ParticipatingBusinessSummaryDto>>(result));
     }
 }
