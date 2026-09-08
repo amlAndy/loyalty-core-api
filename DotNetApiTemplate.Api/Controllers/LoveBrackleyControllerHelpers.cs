@@ -13,6 +13,25 @@ internal static class LoveBrackleyControllerHelpers
             ?? user.FindFirstValue("sub");
     }
 
+    public static string? GetActiveRoleId(this ClaimsPrincipal user)
+    {
+        return user.FindFirstValue("active_role_id");
+    }
+
+    public static string? GetBearerToken(this HttpRequest request)
+    {
+        var authorization = request.Headers.Authorization.ToString();
+        if (string.IsNullOrWhiteSpace(authorization))
+        {
+            return null;
+        }
+
+        const string bearerPrefix = "Bearer ";
+        return authorization.StartsWith(bearerPrefix, StringComparison.OrdinalIgnoreCase)
+            ? authorization[bearerPrefix.Length..].Trim()
+            : null;
+    }
+
     public static ActionResult CreateValidationProblem(ValidationException exception)
     {
         var errors = exception.Errors

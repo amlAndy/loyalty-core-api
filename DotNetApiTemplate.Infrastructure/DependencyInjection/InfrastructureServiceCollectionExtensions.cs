@@ -4,18 +4,21 @@ using DotNetApiTemplate.Application.Features.Admin.Authorization;
 using DotNetApiTemplate.Application.Features.Admin.Interfaces;
 using DotNetApiTemplate.Application.Features.Admin.Roles.Interfaces;
 using DotNetApiTemplate.Application.Features.Admin.Users.Interfaces;
+using DotNetApiTemplate.Application.Features.Auth.Authorization;
 using DotNetApiTemplate.Application.Features.Auth.Dtos;
+using DotNetApiTemplate.Application.Features.Auth.Interfaces;
+using DotNetApiTemplate.Application.Features.LoveBrackley.Authorization;
+using DotNetApiTemplate.Application.Features.LoveBrackley.Interfaces;
 using DotNetApiTemplate.Infrastructure.Admin;
 using DotNetApiTemplate.Infrastructure.Admin.Audit;
-using DotNetApiTemplate.Infrastructure.Persistence;
-using DotNetApiTemplate.Application.Features.Auth.Interfaces;
-using DotNetApiTemplate.Infrastructure.Auth;
 using DotNetApiTemplate.Infrastructure.Admin.Roles;
 using DotNetApiTemplate.Infrastructure.Admin.Users;
+using DotNetApiTemplate.Infrastructure.Auth;
 using DotNetApiTemplate.Infrastructure.Identity;
 using DotNetApiTemplate.Infrastructure.LoveBrackley;
-using DotNetApiTemplate.Application.Features.LoveBrackley.Interfaces;
+using DotNetApiTemplate.Infrastructure.Persistence;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
@@ -81,8 +84,26 @@ public static class InfrastructureServiceCollectionExtensions
             options.AddPolicy(
                 AdminAuthorizationPolicies.AdminAccess,
                 policy => policy.RequireRole(ApplicationRoleNames.AdminRoles));
+
+            options.AddPolicy(
+                ActiveRolePolicies.Member,
+                policy =>
+                {
+                    policy.RequireAuthenticatedUser();
+                    policy.AddRequirements(new ActiveRoleRequirement(ApplicationRoleNames.Member));
+                });
+
+            options.AddPolicy(
+                ActiveRolePolicies.Business,
+                policy =>
+                {
+                    policy.RequireAuthenticatedUser();
+                    policy.AddRequirements(new ActiveRoleRequirement(ApplicationRoleNames.BusinessOwner, ApplicationRoleNames.BusinessStaff));
+                });
         });
 
+        services.AddScoped<IAuthorizationHandler, SelectedRoleAuthorizationHandler>();
+        services.AddScoped<IBusinessAccessAuthorizationService, BusinessAccessAuthorizationService>();
         services.AddScoped<IAuditRepository, AuditRepository>();
         services.AddScoped<IAuditWriter, AuditWriter>();
         services.AddScoped<IAdminMutationScope, AdminMutationScope>();

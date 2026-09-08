@@ -2,13 +2,16 @@
   <Folder Name="/.github/">
     <File Path="copilot-instructions.md" />
   </Folder>
+
   <Folder Name="/.github/instructions/">
     <File Path="backend-api.instructions.md" />
     <File Path="security.instructions.md" />
   </Folder>
+
   <Folder Name="/docs/">
     <File Path="feature-development.md" />
   </Folder>
+
   <Folder Name="/Solution Items/">
     <File Path=".editorconfig" />
     <File Path=".gitignore" />
@@ -18,10 +21,15 @@
     <File Path="README.md" />
     <File Path="TODO.md" />
   </Folder>
+
   <Folder Name="/src/">
     <Project Path="DotNetApiTemplate.Api/DotNetApiTemplate.Api.csproj" />
     <Project Path="DotNetApiTemplate.Application/DotNetApiTemplate.Application.csproj" />
     <Project Path="DotNetApiTemplate.Domain/DotNetApiTemplate.Domain.csproj" />
     <Project Path="DotNetApiTemplate.Infrastructure/DotNetApiTemplate.Infrastructure.csproj" />
+  </Folder>
+
+  <Folder Name="/tests/">
+    <Project Path="DotNetApiTemplate.Tests/DotNetApiTemplate.Tests.csproj" />
   </Folder>
 </Solution>

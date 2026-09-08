@@ -1,3 +1,4 @@
+using DotNetApiTemplate.Application.Features.Auth.Authorization;
 using DotNetApiTemplate.Application.Features.LoveBrackley.Dtos;
 using DotNetApiTemplate.Application.Features.LoveBrackley.Interfaces;
 using FluentValidation;
@@ -8,7 +9,7 @@ namespace DotNetApiTemplate.Api.Controllers;
 
 [ApiController]
 [Route("api/members")]
-[Authorize]
+[Authorize(Policy = ActiveRolePolicies.Member)]
 public sealed class MembersController : ControllerBase
 {
     private readonly IMemberLoyaltyService _memberLoyaltyService;

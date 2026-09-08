@@ -70,6 +70,9 @@ public sealed class AuthControllerTests
         public Task<AuthSessionResult?> RefreshAsync(RefreshSessionCommand command, CancellationToken cancellationToken = default)
             => throw new NotSupportedException();
 
+        public Task<AuthSessionResult?> SelectRoleAsync(string accessToken, SelectRoleCommand command, CancellationToken cancellationToken = default)
+            => throw new NotSupportedException();
+
         public Task<SsoLoginResult> SsoLoginAsync(SsoLoginCommand command, CancellationToken cancellationToken = default)
             => throw new NotSupportedException();
     }
