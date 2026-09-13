@@ -622,12 +622,13 @@ public sealed class DevelopmentIdentitySeeder
         var created = new DateTimeOffset(2026, 3, 1, 9, 0, 0, TimeSpan.Zero);
         await SeedLoveBrackleyLookupsAsync(created, cancellationToken);
 
+        var users = await _dbContext.Users.ToDictionaryAsync(user => user.Email!, user => user.Id, StringComparer.OrdinalIgnoreCase, cancellationToken);
+
         if (await _dbContext.MemberProfiles.AnyAsync(cancellationToken))
         {
+            await EnsureBusinessProfilesAsync(users, cancellationToken);
             return;
         }
-
-        var users = await _dbContext.Users.ToDictionaryAsync(user => user.Email!, user => user.Id, StringComparer.OrdinalIgnoreCase, cancellationToken);
         var members = new[]
         {
             CreateMember("11111111-1111-1111-1111-111111111101", users["sophie.taylor@love-brackley.local"], "Sophie Taylor", "sophie.taylor@love-brackley.local", "LBM-1001", "LB-CARD-1001", 1285),
@@ -649,16 +650,7 @@ public sealed class DevelopmentIdentitySeeder
             LinkedUtc = created
         }));
 
-        var businesses = new[]
-        {
-            CreateBusiness("22222222-2222-2222-2222-222222222201", users["owner.marketkitchen@love-brackley.local"], "Brackley Market Kitchen", "LB-BIZ-2001", "Food & Drink", FoodAndDrinkCategoryId, "Seasonal lunches and local produce from the market square.", "Market Square", "10 Market Place", "NN13 7AB", true),
-            CreateBusiness("22222222-2222-2222-2222-222222222202", users["owner.oldtownbooks@love-brackley.local"], "Old Town Books", "LB-BIZ-2002", "Books & Gifts", BooksCategoryId, "Independent bookseller with gifts, cards, and community events.", "Old Town", "4 High Street", "NN13 7DW", true),
-            CreateBusiness("22222222-2222-2222-2222-222222222203", users["owner.florist@love-brackley.local"], "Love Brackley Florist", "LB-BIZ-2003", "Florist", FloristCategoryId, "Fresh flowers and arrangements for local homes and events.", "Town Centre", "18 Bridge Street", "NN13 7EP", true),
-            CreateBusiness("22222222-2222-2222-2222-222222222204", users["owner.willowcoffee@love-brackley.local"], "Willow Coffee House", "LB-BIZ-2004", "Coffee", CoffeeShopCategoryId, "Neighbourhood coffee, cakes, and light brunches.", "Willow Parade", "2 Willow Road", "NN13 7FA", false),
-            CreateBusiness("22222222-2222-2222-2222-222222222205", users["owner.homegift@love-brackley.local"], "Brackley Home & Gift", "LB-BIZ-2005", "Homeware", HomeAndGiftCategoryId, "Home accessories, candles, and thoughtful local gifts.", "High Street", "22 High Street", "NN13 7DS", false),
-            CreateBusiness("22222222-2222-2222-2222-222222222206", users["owner.foxpantry@love-brackley.local"], "Fox Lane Pantry", "LB-BIZ-2006", "Deli", GroceriesCategoryId, "Pantry staples, deli counter, and local hampers.", "Fox Lane", "7 Fox Lane", "NN13 7FN", false),
-            CreateBusiness("22222222-2222-2222-2222-222222222207", users["owner.riverside@love-brackley.local"], "Riverside Market Kitchen", "LB-BIZ-2007", "Food & Drink", FoodAndDrinkCategoryId, "Riverside breakfasts, lunches, and community suppers.", "Riverside", "1 Riverside Walk", "NN13 7GR", true)
-        };
+        var businesses = CreateSeedBusinesses(users);
         _dbContext.BusinessProfiles.AddRange(businesses);
         _dbContext.BusinessLocations.AddRange(businesses.Select((business, index) => new BusinessLocationEntity
         {
@@ -738,6 +730,64 @@ public sealed class DevelopmentIdentitySeeder
         });
 
         await _dbContext.SaveChangesAsync(cancellationToken);
+    }
+
+    private async Task EnsureBusinessProfilesAsync(IReadOnlyDictionary<string, string> users, CancellationToken cancellationToken)
+    {
+        var seedBusinesses = CreateSeedBusinesses(users);
+        var existingBusinesses = await _dbContext.BusinessProfiles.ToListAsync(cancellationToken);
+
+        foreach (var seededBusiness in seedBusinesses)
+        {
+            var existingBusiness = existingBusinesses.SingleOrDefault(candidate => candidate.Id == seededBusiness.Id)
+                ?? existingBusinesses.SingleOrDefault(candidate =>
+                    string.Equals(candidate.BrandReference, seededBusiness.BrandReference, StringComparison.OrdinalIgnoreCase)
+                    || string.Equals(candidate.Name, seededBusiness.Name, StringComparison.OrdinalIgnoreCase));
+
+            if (existingBusiness is null)
+            {
+                _dbContext.BusinessProfiles.Add(seededBusiness);
+                existingBusinesses.Add(seededBusiness);
+                continue;
+            }
+
+            existingBusiness.OwnerUserId = seededBusiness.OwnerUserId;
+            existingBusiness.Name = seededBusiness.Name;
+            existingBusiness.BrandReference = seededBusiness.BrandReference;
+            existingBusiness.Category = seededBusiness.Category;
+            existingBusiness.TownId = seededBusiness.TownId;
+            existingBusiness.BusinessCategoryId = seededBusiness.BusinessCategoryId;
+            existingBusiness.Description = seededBusiness.Description;
+            existingBusiness.LocationName = seededBusiness.LocationName;
+            existingBusiness.AddressLine1 = seededBusiness.AddressLine1;
+            existingBusiness.AddressLine2 = seededBusiness.AddressLine2;
+            existingBusiness.Town = seededBusiness.Town;
+            existingBusiness.Postcode = seededBusiness.Postcode;
+            existingBusiness.ContactEmail = seededBusiness.ContactEmail;
+            existingBusiness.SupportEmail = seededBusiness.SupportEmail;
+            existingBusiness.PrimaryContactName = seededBusiness.PrimaryContactName;
+            existingBusiness.TradingHoursSummary = seededBusiness.TradingHoursSummary;
+            existingBusiness.ParticipationStatus = seededBusiness.ParticipationStatus;
+            existingBusiness.Featured = seededBusiness.Featured;
+            existingBusiness.UpdatedUtc = seededBusiness.UpdatedUtc;
+        }
+
+        await _dbContext.SaveChangesAsync(cancellationToken);
+    }
+
+    private static BusinessProfileEntity[] CreateSeedBusinesses(IReadOnlyDictionary<string, string> users)
+    {
+        return
+        [
+            CreateBusiness("22222222-2222-2222-2222-222222222201", users["owner.marketkitchen@love-brackley.local"], "Brackley Market Kitchen", "LB-BIZ-2001", "Food & Drink", FoodAndDrinkCategoryId, "Seasonal lunches and local produce from the market square.", "Market Square", "10 Market Place", "NN13 7AB", true),
+            CreateBusiness("22222222-2222-2222-2222-222222222202", users["owner.oldtownbooks@love-brackley.local"], "Old Town Books", "LB-BIZ-2002", "Books & Gifts", BooksCategoryId, "Independent bookseller with gifts, cards, and community events.", "Old Town", "4 High Street", "NN13 7DW", true),
+            CreateBusiness("22222222-2222-2222-2222-222222222203", users["owner.florist@love-brackley.local"], "Love Brackley Florist", "LB-BIZ-2003", "Florist", FloristCategoryId, "Fresh flowers and arrangements for local homes and events.", "Town Centre", "18 Bridge Street", "NN13 7EP", true),
+            CreateBusiness("22222222-2222-2222-2222-222222222204", users["owner.willowcoffee@love-brackley.local"], "Willow Coffee House", "LB-BIZ-2004", "Coffee", CoffeeShopCategoryId, "Neighbourhood coffee, cakes, and light brunches.", "Willow Parade", "2 Willow Road", "NN13 7FA", false),
+            CreateBusiness("22222222-2222-2222-2222-222222222205", users["owner.homegift@love-brackley.local"], "Brackley Home & Gift", "LB-BIZ-2005", "Homeware", HomeAndGiftCategoryId, "Home accessories, candles, and thoughtful local gifts.", "High Street", "22 High Street", "NN13 7DS", false),
+            CreateBusiness("22222222-2222-2222-2222-222222222206", users["owner.foxpantry@love-brackley.local"], "Fox Lane Pantry", "LB-BIZ-2006", "Deli", GroceriesCategoryId, "Pantry staples, deli counter, and local hampers.", "Fox Lane", "7 Fox Lane", "NN13 7FN", false),
+            CreateBusiness("22222222-2222-2222-2222-222222222207", users["owner.riverside@love-brackley.local"], "Riverside Market Kitchen", "LB-BIZ-2007", "Food & Drink", FoodAndDrinkCategoryId, "Riverside breakfasts, lunches, and community suppers.", "Riverside", "1 Riverside Walk", "NN13 7GR", true),
+            CreateBusiness("22222222-2222-2222-2222-222222222208", users["owner.greenpantry@love-brackley.local"], "Green Pantry", "LB-BIZ-2008", "Deli", GroceriesCategoryId, "Local pantry staples, fresh produce, and neighbourhood essentials.", "Green Pantry Corner", "15 Market Place", "NN13 7AJ", true)
+        ];
     }
 
     private static MemberProfileEntity CreateMember(string id, string userId, string name, string email, string reference, string cardCode, int points)
