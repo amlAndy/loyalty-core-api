@@ -9,4 +9,5 @@ public sealed class AuthenticatedUserModel
     public string[] RoleIds { get; init; } = [];
     public string[] Roles { get; init; } = [];
     public string? ActiveRoleId { get; init; }
+    public string? BusinessId { get; init; }
 }

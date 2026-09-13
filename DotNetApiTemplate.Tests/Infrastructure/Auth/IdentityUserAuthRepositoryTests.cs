@@ -1,5 +1,7 @@
+using DotNetApiTemplate.Application.Features.Auth.Dtos;
 using DotNetApiTemplate.Infrastructure.Auth;
 using DotNetApiTemplate.Infrastructure.Identity;
+using DotNetApiTemplate.Infrastructure.LoveBrackley;
 using DotNetApiTemplate.Infrastructure.Persistence;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
@@ -20,20 +22,9 @@ public sealed class IdentityUserAuthRepositoryTests
         await using var dbContext = CreateDbContext();
         var userManager = CreateUserManager(dbContext);
         var repository = new IdentityUserAuthRepository(dbContext, userManager, CreateJwtTokenService());
-        var user = new ApplicationUser
-        {
-            Id = Guid.NewGuid().ToString("N"),
-            Email = "andy@example.com",
-            UserName = "andy@example.com",
-            DisplayName = "Andy Morgan",
-            Status = "Active"
-        };
+        var user = await CreateUserAsync(userManager, "andy@example.com", "Andy Morgan");
 
-        var createResult = await userManager.CreateAsync(user, "Password1!");
-
-        Assert.True(createResult.Succeeded);
-
-        var request = await repository.CreatePasswordResetRequestAsync(user.Email, CancellationToken.None);
+        var request = await repository.CreatePasswordResetRequestAsync(user.Email!, CancellationToken.None);
 
         Assert.NotNull(request);
 
@@ -46,10 +37,170 @@ public sealed class IdentityUserAuthRepositoryTests
         Assert.True(storedToken.ExpiresAtUtc > storedToken.CreatedAtUtc);
     }
 
+    [Fact]
+    public async Task AuthenticateAsync_MemberSession_HasNullBusinessId()
+    {
+        await using var dbContext = CreateDbContext();
+        var userManager = CreateUserManager(dbContext);
+        var repository = new IdentityUserAuthRepository(dbContext, userManager, CreateJwtTokenService());
+        var memberRoleId = await CreateRoleAsync(dbContext, ApplicationRoleNames.Member);
+        var user = await CreateUserAsync(userManager, "member@example.com", "Member User");
+        await AssignRoleAsync(dbContext, user.Id, memberRoleId);
+
+        var result = await repository.AuthenticateAsync(user.Email!, "Password1!", CancellationToken.None);
+
+        Assert.NotNull(result);
+        Assert.Null(result!.User.BusinessId);
+    }
+
+    [Fact]
+    public async Task AuthenticateAsync_BusinessOwnerSession_UsesOwnedBusinessProfileId()
+    {
+        await using var dbContext = CreateDbContext();
+        var userManager = CreateUserManager(dbContext);
+        var repository = new IdentityUserAuthRepository(dbContext, userManager, CreateJwtTokenService());
+        var ownerRoleId = await CreateRoleAsync(dbContext, ApplicationRoleNames.BusinessOwner);
+        var user = await CreateUserAsync(userManager, "owner@example.com", "Owner User");
+        await AssignRoleAsync(dbContext, user.Id, ownerRoleId);
+
+        var businessId = Guid.Parse("22222222-2222-2222-2222-222222222201");
+        dbContext.BusinessProfiles.Add(CreateBusinessProfile(businessId, user.Id, "Owner business"));
+        await dbContext.SaveChangesAsync();
+
+        var result = await repository.AuthenticateAsync(user.Email!, "Password1!", CancellationToken.None);
+
+        Assert.NotNull(result);
+        Assert.Equal(businessId.ToString("D"), result!.User.BusinessId);
+    }
+
+    [Fact]
+    public async Task AuthenticateAsync_BusinessStaffSession_UsesAssignedActiveStaffBusinessProfileId()
+    {
+        await using var dbContext = CreateDbContext();
+        var userManager = CreateUserManager(dbContext);
+        var repository = new IdentityUserAuthRepository(dbContext, userManager, CreateJwtTokenService());
+        var staffRoleId = await CreateRoleAsync(dbContext, ApplicationRoleNames.BusinessStaff);
+        var ownerRoleId = await CreateRoleAsync(dbContext, ApplicationRoleNames.BusinessOwner);
+        var owner = await CreateUserAsync(userManager, "owner-staff-test@example.com", "Owner Staff Test");
+        var staffUser = await CreateUserAsync(userManager, "staff@example.com", "Staff User");
+        await AssignRoleAsync(dbContext, owner.Id, ownerRoleId);
+        await AssignRoleAsync(dbContext, staffUser.Id, staffRoleId);
+
+        var businessId = Guid.Parse("22222222-2222-2222-2222-222222222202");
+        dbContext.BusinessProfiles.Add(CreateBusinessProfile(businessId, owner.Id, "Staff business"));
+        dbContext.BusinessStaffAccesses.Add(new BusinessStaffAccessEntity
+        {
+            Id = Guid.Parse("44444444-4444-4444-4444-444444444401"),
+            BusinessProfileId = businessId,
+            UserId = staffUser.Id,
+            DisplayName = "Staff User",
+            BusinessAccessRole = "Staff",
+            PinHash = "hash",
+            PinStatus = "Active",
+            LastActivitySummary = string.Empty,
+            CreatedUtc = DateTimeOffset.UtcNow,
+            UpdatedUtc = DateTimeOffset.UtcNow,
+        });
+        await dbContext.SaveChangesAsync();
+
+        var result = await repository.AuthenticateAsync(staffUser.Email!, "Password1!", CancellationToken.None);
+
+        Assert.NotNull(result);
+        Assert.Equal(businessId.ToString("D"), result!.User.BusinessId);
+    }
+
+    [Fact]
+    public async Task AuthenticateAsync_AdminSession_HasNullBusinessId()
+    {
+        await using var dbContext = CreateDbContext();
+        var userManager = CreateUserManager(dbContext);
+        var repository = new IdentityUserAuthRepository(dbContext, userManager, CreateJwtTokenService());
+        var adminRoleId = await CreateRoleAsync(dbContext, ApplicationRoleNames.PlatformAdmin);
+        var user = await CreateUserAsync(userManager, "admin@example.com", "Admin User");
+        await AssignRoleAsync(dbContext, user.Id, adminRoleId);
+
+        var result = await repository.AuthenticateAsync(user.Email!, "Password1!", CancellationToken.None);
+
+        Assert.NotNull(result);
+        Assert.Null(result!.User.BusinessId);
+    }
+
+    [Fact]
+    public async Task RefreshAsync_PreservesBusinessIdForBusinessOwner()
+    {
+        await using var dbContext = CreateDbContext();
+        var userManager = CreateUserManager(dbContext);
+        var repository = new IdentityUserAuthRepository(dbContext, userManager, CreateJwtTokenService());
+        var ownerRoleId = await CreateRoleAsync(dbContext, ApplicationRoleNames.BusinessOwner);
+        var user = await CreateUserAsync(userManager, "owner-refresh@example.com", "Owner Refresh");
+        await AssignRoleAsync(dbContext, user.Id, ownerRoleId);
+
+        var businessId = Guid.Parse("22222222-2222-2222-2222-222222222203");
+        dbContext.BusinessProfiles.Add(CreateBusinessProfile(businessId, user.Id, "Owner refresh business"));
+        await dbContext.SaveChangesAsync();
+
+        var login = await repository.AuthenticateAsync(user.Email!, "Password1!", CancellationToken.None);
+        var refreshed = await repository.RefreshAsync(login!.RefreshToken, CancellationToken.None);
+
+        Assert.NotNull(refreshed);
+        Assert.Equal(businessId.ToString("D"), refreshed!.User.BusinessId);
+    }
+
+    [Fact]
+    public async Task SelectRoleAsync_UpdatesBusinessIdWhenSwitchingBetweenMemberAndBusinessOwner()
+    {
+        await using var dbContext = CreateDbContext();
+        var userManager = CreateUserManager(dbContext);
+        var repository = new IdentityUserAuthRepository(dbContext, userManager, CreateJwtTokenService());
+
+        var memberRoleId = await CreateRoleAsync(dbContext, ApplicationRoleNames.Member);
+        var ownerRoleId = await CreateRoleAsync(dbContext, ApplicationRoleNames.BusinessOwner);
+        var user = await CreateUserAsync(userManager, "owner-member@example.com", "Owner Member");
+        await AssignRoleAsync(dbContext, user.Id, memberRoleId);
+        await AssignRoleAsync(dbContext, user.Id, ownerRoleId);
+
+        var businessId = Guid.Parse("22222222-2222-2222-2222-222222222204");
+        dbContext.BusinessProfiles.Add(CreateBusinessProfile(businessId, user.Id, "Owner member business"));
+        await dbContext.SaveChangesAsync();
+
+        var session = await repository.CreateSessionAsync(user.Email!, CancellationToken.None);
+        Assert.NotNull(session);
+        Assert.Null(session!.User.BusinessId);
+
+        var ownerSession = await repository.SelectRoleAsync(session.AccessToken, ownerRoleId, CancellationToken.None);
+        Assert.NotNull(ownerSession);
+        Assert.Equal(businessId.ToString("D"), ownerSession!.User.BusinessId);
+
+        var memberSession = await repository.SelectRoleAsync(ownerSession.AccessToken, memberRoleId, CancellationToken.None);
+        Assert.NotNull(memberSession);
+        Assert.Null(memberSession!.User.BusinessId);
+    }
+
+    [Fact]
+    public async Task GetUserByAccessTokenAsync_ReturnsBusinessIdForActiveBusinessOwnerRole()
+    {
+        await using var dbContext = CreateDbContext();
+        var userManager = CreateUserManager(dbContext);
+        var repository = new IdentityUserAuthRepository(dbContext, userManager, CreateJwtTokenService());
+        var ownerRoleId = await CreateRoleAsync(dbContext, ApplicationRoleNames.BusinessOwner);
+        var user = await CreateUserAsync(userManager, "owner-me@example.com", "Owner Me");
+        await AssignRoleAsync(dbContext, user.Id, ownerRoleId);
+
+        var businessId = Guid.Parse("22222222-2222-2222-2222-222222222205");
+        dbContext.BusinessProfiles.Add(CreateBusinessProfile(businessId, user.Id, "Owner me business"));
+        await dbContext.SaveChangesAsync();
+
+        var session = await repository.AuthenticateAsync(user.Email!, "Password1!", CancellationToken.None);
+        var currentUser = await repository.GetUserByAccessTokenAsync(session!.AccessToken, CancellationToken.None);
+
+        Assert.NotNull(currentUser);
+        Assert.Equal(businessId.ToString("D"), currentUser!.BusinessId);
+    }
+
     private static ApplicationDbContext CreateDbContext()
     {
         var options = new DbContextOptionsBuilder<ApplicationDbContext>()
-            .UseInMemoryDatabase($"password-reset-{Guid.NewGuid():N}")
+            .UseInMemoryDatabase($"auth-session-{Guid.NewGuid():N}")
             .Options;
 
         return new ApplicationDbContext(options);
@@ -90,5 +241,78 @@ public sealed class IdentityUserAuthRepositoryTests
             .Build();
 
         return new JwtTokenService(configuration);
+    }
+
+    private static async Task<ApplicationUser> CreateUserAsync(UserManager<ApplicationUser> userManager, string email, string displayName)
+    {
+        var user = new ApplicationUser
+        {
+            Id = Guid.NewGuid().ToString("N"),
+            Email = email,
+            UserName = email,
+            DisplayName = displayName,
+            Status = "Active"
+        };
+
+        var createResult = await userManager.CreateAsync(user, "Password1!");
+        Assert.True(createResult.Succeeded);
+
+        return user;
+    }
+
+    private static async Task<string> CreateRoleAsync(ApplicationDbContext dbContext, string roleName)
+    {
+        var roleId = Guid.NewGuid().ToString("N");
+        dbContext.Roles.Add(new ApplicationRole
+        {
+            Id = roleId,
+            Name = roleName,
+            NormalizedName = roleName.ToUpperInvariant(),
+            Description = roleName,
+            IsRootRole = false,
+            IsSystemRole = true,
+            CreatedAtUtc = DateTimeOffset.UtcNow,
+            UpdatedAtUtc = DateTimeOffset.UtcNow,
+        });
+
+        await dbContext.SaveChangesAsync();
+        return roleId;
+    }
+
+    private static async Task AssignRoleAsync(ApplicationDbContext dbContext, string userId, string roleId)
+    {
+        dbContext.UserRoles.Add(new IdentityUserRole<string>
+        {
+            UserId = userId,
+            RoleId = roleId,
+        });
+
+        await dbContext.SaveChangesAsync();
+    }
+
+    private static BusinessProfileEntity CreateBusinessProfile(Guid businessId, string ownerUserId, string name)
+    {
+        return new BusinessProfileEntity
+        {
+            Id = businessId,
+            OwnerUserId = ownerUserId,
+            Name = name,
+            BrandReference = "LB-BIZ-TEST",
+            Category = "Food & Drink",
+            TownId = Guid.Parse("10000000-0000-0000-0000-000000000001"),
+            BusinessCategoryId = Guid.Parse("20000000-0000-0000-0000-000000000001"),
+            Description = "Test business",
+            LocationName = "Test location",
+            AddressLine1 = "1 Test Street",
+            Town = "Brackley",
+            Postcode = "NN13 7AA",
+            ContactEmail = "business@example.com",
+            PrimaryContactName = "Test Owner",
+            TradingHoursSummary = "Mon-Fri 09:00-17:00",
+            ParticipationStatus = "Active",
+            Featured = false,
+            CreatedUtc = DateTimeOffset.UtcNow,
+            UpdatedUtc = DateTimeOffset.UtcNow,
+        };
     }
 }

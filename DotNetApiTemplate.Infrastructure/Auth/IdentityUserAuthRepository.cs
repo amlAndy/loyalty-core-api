@@ -189,7 +189,7 @@ public sealed class IdentityUserAuthRepository : IUserAuthRepository
         var roleData = await GetRoleDataAsync(user.Id, cancellationToken);
         var activeRoleId = ResolveActiveRoleId(roleData, principal?.FindFirstValue(JwtTokenService.ActiveRoleIdClaimType));
 
-        return MapUser(user, roleData, activeRoleId);
+        return await MapUserAsync(user, roleData, activeRoleId, cancellationToken);
     }
 
     public async Task<AuthSessionResult?> RefreshAsync(
@@ -229,7 +229,7 @@ public sealed class IdentityUserAuthRepository : IUserAuthRepository
             AccessToken = accessToken,
             RefreshToken = replacementRefreshToken.Token,
             ExpiresAt = accessTokenExpiresAt,
-            User = MapUser(user, roleData, activeRoleId),
+            User = await MapUserAsync(user, roleData, activeRoleId, cancellationToken),
             Permissions = await GetPermissionsAsync(activeRoleId, cancellationToken)
         };
     }
@@ -288,7 +288,7 @@ public sealed class IdentityUserAuthRepository : IUserAuthRepository
             AccessToken = newAccessToken,
             RefreshToken = replacementRefreshToken.Token,
             ExpiresAt = expiresAt,
-            User = MapUser(storedRefreshToken.User, roleData, roleId),
+            User = await MapUserAsync(storedRefreshToken.User, roleData, roleId, cancellationToken),
             Permissions = await GetPermissionsAsync(roleId, cancellationToken)
         };
     }
@@ -329,7 +329,7 @@ public sealed class IdentityUserAuthRepository : IUserAuthRepository
             AccessToken = accessToken,
             RefreshToken = refreshToken.Token,
             ExpiresAt = accessTokenExpiresAt,
-            User = MapUser(user, roleData, activeRoleId),
+            User = await MapUserAsync(user, roleData, activeRoleId, cancellationToken),
             Permissions = await GetPermissionsAsync(activeRoleId, cancellationToken)
         };
     }
@@ -394,8 +394,14 @@ public sealed class IdentityUserAuthRepository : IUserAuthRepository
             : null;
     }
 
-    private static AuthenticatedUserModel MapUser(ApplicationUser user, RoleData roleData, string? activeRoleId)
+    private async Task<AuthenticatedUserModel> MapUserAsync(
+        ApplicationUser user,
+        RoleData roleData,
+        string? activeRoleId,
+        CancellationToken cancellationToken)
     {
+        var businessId = await ResolveBusinessIdAsync(user.Id, roleData, activeRoleId, cancellationToken);
+
         return new AuthenticatedUserModel
         {
             Id = user.Id,
@@ -404,7 +410,71 @@ public sealed class IdentityUserAuthRepository : IUserAuthRepository
             Status = string.IsNullOrWhiteSpace(user.Status) ? ActiveStatus : user.Status,
             RoleIds = roleData.RoleIds,
             Roles = roleData.RoleNames,
-            ActiveRoleId = activeRoleId
+            ActiveRoleId = activeRoleId,
+            BusinessId = businessId
+        };
+    }
+
+    private async Task<string?> ResolveBusinessIdAsync(
+        string userId,
+        RoleData roleData,
+        string? activeRoleId,
+        CancellationToken cancellationToken)
+    {
+        if (string.IsNullOrWhiteSpace(activeRoleId))
+        {
+            return null;
+        }
+
+        var activeRoleName = roleData.ResolveRoleName(activeRoleId);
+
+        if (string.Equals(activeRoleName, ApplicationRoleNames.BusinessOwner, StringComparison.OrdinalIgnoreCase))
+        {
+            return await ResolveOwnedBusinessIdAsync(userId, cancellationToken);
+        }
+
+        if (string.Equals(activeRoleName, ApplicationRoleNames.BusinessStaff, StringComparison.OrdinalIgnoreCase))
+        {
+            return await ResolveStaffBusinessIdAsync(userId, cancellationToken);
+        }
+
+        return null;
+    }
+
+    private async Task<string?> ResolveOwnedBusinessIdAsync(string userId, CancellationToken cancellationToken)
+    {
+        var ownedBusinessIds = await _dbContext.BusinessProfiles
+            .AsNoTracking()
+            .Where(candidate => candidate.OwnerUserId == userId)
+            .OrderBy(candidate => candidate.Id)
+            .Select(candidate => candidate.Id)
+            .Take(2)
+            .ToListAsync(cancellationToken);
+
+        return ownedBusinessIds.Count switch
+        {
+            0 => null,
+            1 => ownedBusinessIds[0].ToString("D"),
+            _ => throw new InvalidOperationException($"Ambiguous business owner context for user '{userId}'.")
+        };
+    }
+
+    private async Task<string?> ResolveStaffBusinessIdAsync(string userId, CancellationToken cancellationToken)
+    {
+        var assignedBusinessIds = await _dbContext.BusinessStaffAccesses
+            .AsNoTracking()
+            .Where(candidate => candidate.UserId == userId && candidate.PinStatus == ActiveStatus)
+            .Select(candidate => candidate.BusinessProfileId)
+            .Distinct()
+            .OrderBy(candidate => candidate)
+            .Take(2)
+            .ToListAsync(cancellationToken);
+
+        return assignedBusinessIds.Count switch
+        {
+            0 => null,
+            1 => assignedBusinessIds[0].ToString("D"),
+            _ => throw new InvalidOperationException($"Ambiguous business staff context for user '{userId}'.")
         };
     }
 
@@ -430,6 +500,17 @@ public sealed class IdentityUserAuthRepository : IUserAuthRepository
         public bool ContainsRole(string? roleId)
         {
             return !string.IsNullOrWhiteSpace(roleId) && RoleIds.Contains(roleId, StringComparer.Ordinal);
+        }
+
+        public string? ResolveRoleName(string? roleId)
+        {
+            if (string.IsNullOrWhiteSpace(roleId))
+            {
+                return null;
+            }
+
+            var index = Array.FindIndex(RoleIds, currentRoleId => string.Equals(currentRoleId, roleId, StringComparison.Ordinal));
+            return index >= 0 && index < RoleNames.Length ? RoleNames[index] : null;
         }
     };
 }
