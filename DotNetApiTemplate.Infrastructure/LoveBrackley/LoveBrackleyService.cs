@@ -292,42 +292,54 @@ public sealed class LoveBrackleyService : IMemberLoyaltyService, ILoveBrackleyLo
 
         page = NormalizePage(page);
         pageSize = NormalizePageSize(pageSize);
+        var inactiveCutoffUtc = DateTimeOffset.UtcNow.AddDays(-45);
+        var normalizedActivityStatus = NormalizeActivityStatusFilter(activityStatus);
         var interactedMemberIds = _dbContext.LoyaltyTransactions
             .Where(transaction => transaction.BusinessProfileId == businessId)
             .Select(transaction => transaction.MemberProfileId);
-        var query = _dbContext.MemberProfiles.AsNoTracking()
-            .Where(member => interactedMemberIds.Contains(member.Id) || member.Status == ActiveStatus);
+
+        var query = _dbContext.MemberProfiles
+            .AsNoTracking()
+            .Where(member => interactedMemberIds.Contains(member.Id) || member.Status == ActiveStatus)
+            .Select(member => new
+            {
+                Member = member,
+                LastActivityUtc = _dbContext.LoyaltyTransactions
+                    .Where(transaction => transaction.BusinessProfileId == businessId && transaction.MemberProfileId == member.Id)
+                    .Select(transaction => (DateTimeOffset?)transaction.CreatedUtc)
+                    .Max(),
+            });
 
         if (!string.IsNullOrWhiteSpace(searchTerm))
         {
-            query = query.Where(member => member.DisplayName.Contains(searchTerm) || member.PublicMemberReference.Contains(searchTerm) || member.CardCode.Contains(searchTerm));
+            query = query.Where(candidate =>
+                candidate.Member.DisplayName.Contains(searchTerm)
+                || candidate.Member.PublicMemberReference.Contains(searchTerm)
+                || candidate.Member.CardCode.Contains(searchTerm));
+        }
+
+        if (normalizedActivityStatus is not null)
+        {
+            query = normalizedActivityStatus switch
+            {
+                "Active" => query.Where(candidate => candidate.Member.Status != "Suspended" && candidate.LastActivityUtc != null && candidate.LastActivityUtc >= inactiveCutoffUtc),
+                "Inactive" => query.Where(candidate => candidate.Member.Status != "Suspended" && candidate.LastActivityUtc != null && candidate.LastActivityUtc < inactiveCutoffUtc),
+                "NeedsFollowUp" => query.Where(candidate => candidate.Member.Status != "Suspended" && candidate.LastActivityUtc == null),
+                "Suspended" => query.Where(candidate => candidate.Member.Status == "Suspended"),
+                _ => query.Where(_ => false),
+            };
         }
 
         var totalCount = await query.CountAsync(cancellationToken);
         var members = await query
-            .OrderBy(member => member.DisplayName)
+            .OrderBy(candidate => candidate.Member.DisplayName)
             .Skip((page - 1) * pageSize)
             .Take(pageSize)
             .ToListAsync(cancellationToken);
 
-        var memberIds = members.Select(member => member.Id).ToArray();
-        var lastActivities = await _dbContext.LoyaltyTransactions.AsNoTracking()
-            .Where(transaction => transaction.BusinessProfileId == businessId && memberIds.Contains(transaction.MemberProfileId))
-            .GroupBy(transaction => transaction.MemberProfileId)
-            .Select(group => new
-            {
-                MemberId = group.Key,
-                LastActivityUtc = group.Max(transaction => transaction.CreatedUtc)
-            })
-            .ToListAsync(cancellationToken);
-        var lastActivityLookup = lastActivities.ToDictionary(activity => activity.MemberId, activity => activity.LastActivityUtc);
-
-        var items = members.Select(member => ToBusinessMemberSummary(member, lastActivityLookup.GetValueOrDefault(member.Id))).ToList();
-        if (!string.IsNullOrWhiteSpace(activityStatus))
-        {
-            items = items.Where(member => string.Equals(member.ActivityStatus, activityStatus, StringComparison.OrdinalIgnoreCase)).ToList();
-            totalCount = items.Count;
-        }
+        var items = members
+            .Select(candidate => ToBusinessMemberSummary(candidate.Member, candidate.LastActivityUtc))
+            .ToList();
 
         return new BusinessMemberSearchResponse(items, page, pageSize, totalCount);
     }
@@ -1122,6 +1134,23 @@ public sealed class LoveBrackleyService : IMemberLoyaltyService, ILoveBrackleyLo
             transaction.CreatedUtc,
             transaction.CompletedUtc,
             transaction.HeldReason);
+    }
+
+    private static string? NormalizeActivityStatusFilter(string? activityStatus)
+    {
+        if (string.IsNullOrWhiteSpace(activityStatus))
+        {
+            return null;
+        }
+
+        return activityStatus.Trim().ToUpperInvariant() switch
+        {
+            "ACTIVE" => "Active",
+            "INACTIVE" => "Inactive",
+            "NEEDSFOLLOWUP" => "NeedsFollowUp",
+            "SUSPENDED" => "Suspended",
+            _ => "__INVALID__",
+        };
     }
 
     private static BusinessMemberSummaryDto ToBusinessMemberSummary(MemberProfileEntity member, DateTimeOffset? lastActivityUtc)
