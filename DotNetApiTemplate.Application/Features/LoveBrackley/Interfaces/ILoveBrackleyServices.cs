@@ -34,7 +34,7 @@ public interface IBusinessLoyaltyService
     Task<BusinessMemberDetailDto?> GetMemberAsync(Guid businessId, Guid memberId, CancellationToken cancellationToken);
     Task<BusinessMemberDetailDto?> GetMemberByCardAsync(Guid businessId, string cardCode, CancellationToken cancellationToken);
     Task<LoyaltyTransactionDto?> EarnAsync(Guid businessId, EarnPointsRequest request, CancellationToken cancellationToken);
-    Task<LoyaltyTransactionDto?> RedeemAsync(Guid businessId, RedeemPointsRequest request, CancellationToken cancellationToken);
+    Task<LoyaltyTransactionDto?> RedeemAsync(Guid businessId, RedeemPointsRequest request, string? actorUserId, string? activeRoleId, CancellationToken cancellationToken);
     Task<BusinessTransactionSearchResponse?> SearchTransactionsAsync(Guid businessId, string? searchTerm, string? dateRange, string? transactionType, Guid? staffMemberId, string? status, int page, int pageSize, CancellationToken cancellationToken);
     Task<BusinessStaffAccessOverviewDto?> GetStaffAccessOverviewAsync(Guid businessId, CancellationToken cancellationToken);
     Task<PagedResponse<BusinessStaffAccessRecordDto>?> SearchStaffAccessAsync(Guid businessId, string? pinStatus, int page, int pageSize, CancellationToken cancellationToken);

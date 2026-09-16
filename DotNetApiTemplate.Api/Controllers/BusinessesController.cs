@@ -107,7 +107,12 @@ public sealed class BusinessesController : ControllerBase
 
         try
         {
-            var result = await _businessLoyaltyService.RedeemAsync(businessId, request, cancellationToken);
+            var result = await _businessLoyaltyService.RedeemAsync(
+                businessId,
+                request,
+                User.GetCurrentUserId(),
+                User.GetActiveRoleId(),
+                cancellationToken);
             return result is null ? NotFound() : Ok(new DataResponse<LoyaltyTransactionDto>(result));
         }
         catch (ValidationException exception)

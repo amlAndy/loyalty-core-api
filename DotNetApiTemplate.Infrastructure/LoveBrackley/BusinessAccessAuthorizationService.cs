@@ -55,11 +55,20 @@ public sealed class BusinessAccessAuthorizationService : IBusinessAccessAuthoriz
             return BusinessAccessAuthorizationResult.Forbidden;
         }
 
-        var staff = await _dbContext.BusinessStaffAccesses
+        var matchingStaffAccesses = await _dbContext.BusinessStaffAccesses
             .AsNoTracking()
-            .SingleOrDefaultAsync(candidate => candidate.BusinessProfileId == businessId && candidate.UserId == userId, cancellationToken);
+            .Where(candidate => candidate.BusinessProfileId == businessId && candidate.UserId == userId)
+            .OrderBy(candidate => candidate.Id)
+            .Take(2)
+            .ToListAsync(cancellationToken);
 
-        if (staff is null || !IsActiveStaffStatus(staff.PinStatus))
+        if (matchingStaffAccesses.Count != 1)
+        {
+            return BusinessAccessAuthorizationResult.Forbidden;
+        }
+
+        var staff = matchingStaffAccesses[0];
+        if (!IsActiveStaffStatus(staff.PinStatus))
         {
             return BusinessAccessAuthorizationResult.Forbidden;
         }

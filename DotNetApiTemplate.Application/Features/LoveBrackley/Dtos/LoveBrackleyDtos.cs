@@ -157,7 +157,7 @@ public sealed record BusinessMemberDetailDto(
 
 public sealed record EarnPointsRequest(Guid MemberId, Guid? StaffAccessId, Guid? BusinessLocationId, decimal PurchaseAmount, string? Notes);
 
-public sealed record RedeemPointsRequest(Guid MemberId, Guid StaffAccessId, Guid? BusinessLocationId, int Points, decimal PurchaseAmount, string? Notes);
+public sealed record RedeemPointsRequest(Guid MemberId, Guid? BusinessLocationId, int Points, decimal PurchaseAmount, string? Notes);
 
 public sealed record LoyaltyTransactionDto(
     Guid Id,

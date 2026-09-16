@@ -1,5 +1,6 @@
 using System.Security.Cryptography;
 using System.Text;
+using DotNetApiTemplate.Application.Features.Auth.Dtos;
 using DotNetApiTemplate.Application.Features.LoveBrackley.Dtos;
 using DotNetApiTemplate.Application.Features.LoveBrackley.Interfaces;
 using DotNetApiTemplate.Infrastructure.Persistence;
@@ -415,7 +416,12 @@ public sealed class LoveBrackleyService : IMemberLoyaltyService, ILoveBrackleyLo
         return await GetTransactionDtoAsync(transaction.Id, cancellationToken);
     }
 
-    public async Task<LoyaltyTransactionDto?> RedeemAsync(Guid businessId, RedeemPointsRequest request, CancellationToken cancellationToken)
+    public async Task<LoyaltyTransactionDto?> RedeemAsync(
+        Guid businessId,
+        RedeemPointsRequest request,
+        string? actorUserId,
+        string? activeRoleId,
+        CancellationToken cancellationToken)
     {
         if (request.Points <= 0)
         {
@@ -438,8 +444,7 @@ public sealed class LoveBrackleyService : IMemberLoyaltyService, ILoveBrackleyLo
         await using var dbTransaction = await _dbContext.Database.BeginTransactionAsync(cancellationToken);
         var member = await _dbContext.MemberProfiles.SingleOrDefaultAsync(candidate => candidate.Id == request.MemberId, cancellationToken);
         var business = await _dbContext.BusinessProfiles.SingleOrDefaultAsync(candidate => candidate.Id == businessId, cancellationToken);
-        var staff = await _dbContext.BusinessStaffAccesses.SingleOrDefaultAsync(candidate => candidate.Id == request.StaffAccessId && candidate.BusinessProfileId == businessId, cancellationToken);
-        if (member is null || business is null || staff is null)
+        if (member is null || business is null)
         {
             return null;
         }
@@ -449,13 +454,10 @@ public sealed class LoveBrackleyService : IMemberLoyaltyService, ILoveBrackleyLo
             ThrowValidation(nameof(request.Points), "Member does not have enough points.");
         }
 
-        var status = staff.PinStatus == ActiveStatus ? CompletedStatus : HeldStatus;
-        var completedUtc = status == CompletedStatus ? DateTimeOffset.UtcNow : (DateTimeOffset?)null;
-        if (status == CompletedStatus)
-        {
-            member.PointsBalance -= request.Points;
-            member.UpdatedUtc = DateTimeOffset.UtcNow;
-        }
+        var staffAccess = await ResolveRedeemStaffAccessAsync(businessId, actorUserId, activeRoleId, cancellationToken);
+
+        member.PointsBalance -= request.Points;
+        member.UpdatedUtc = DateTimeOffset.UtcNow;
 
         var transaction = new LoyaltyTransactionEntity
         {
@@ -463,17 +465,17 @@ public sealed class LoveBrackleyService : IMemberLoyaltyService, ILoveBrackleyLo
             MemberProfileId = member.Id,
             BusinessProfileId = businessId,
             BusinessLocationId = request.BusinessLocationId,
-            StaffAccessId = staff.Id,
+            StaffAccessId = staffAccess?.Id,
             TransactionType = RedeemType,
             Points = request.Points,
             PurchaseAmount = request.PurchaseAmount,
             RedeemedValue = redeemedValue,
-            Status = status,
+            Status = CompletedStatus,
             Reference = CreateReference("RED"),
             Notes = TrimToNull(request.Notes),
-            HeldReason = status == HeldStatus ? "Staff PIN is not active." : null,
+            HeldReason = null,
             CreatedUtc = DateTimeOffset.UtcNow,
-            CompletedUtc = completedUtc
+            CompletedUtc = DateTimeOffset.UtcNow
         };
         _dbContext.LoyaltyTransactions.Add(transaction);
         await _dbContext.SaveChangesAsync(cancellationToken);
@@ -1056,6 +1058,55 @@ public sealed class LoveBrackleyService : IMemberLoyaltyService, ILoveBrackleyLo
     private async Task<bool> BusinessExistsAsync(Guid businessId, CancellationToken cancellationToken)
     {
         return await _dbContext.BusinessProfiles.AnyAsync(candidate => candidate.Id == businessId, cancellationToken);
+    }
+
+    private async Task<BusinessStaffAccessEntity?> ResolveRedeemStaffAccessAsync(
+        Guid businessId,
+        string? actorUserId,
+        string? activeRoleId,
+        CancellationToken cancellationToken)
+    {
+        if (string.IsNullOrWhiteSpace(actorUserId) || string.IsNullOrWhiteSpace(activeRoleId))
+        {
+            ThrowValidation("actor", "Authenticated business context is required for redeem transactions.");
+        }
+
+        var activeRoleName = await _dbContext.UserRoles
+            .Where(userRole => userRole.UserId == actorUserId && userRole.RoleId == activeRoleId)
+            .Join(
+                _dbContext.Roles,
+                userRole => userRole.RoleId,
+                role => role.Id,
+                (_, role) => role.Name)
+            .FirstOrDefaultAsync(cancellationToken);
+
+        if (string.IsNullOrWhiteSpace(activeRoleName))
+        {
+            ThrowValidation("actor", "Unable to resolve the active business role for this redeem transaction.");
+        }
+
+        if (string.Equals(activeRoleName, ApplicationRoleNames.BusinessOwner, StringComparison.OrdinalIgnoreCase))
+        {
+            return null;
+        }
+
+        if (!string.Equals(activeRoleName, ApplicationRoleNames.BusinessStaff, StringComparison.OrdinalIgnoreCase))
+        {
+            ThrowValidation("actor", "A business owner or business staff role is required for redeem transactions.");
+        }
+
+        var staffAccesses = await _dbContext.BusinessStaffAccesses
+            .Where(candidate => candidate.BusinessProfileId == businessId && candidate.UserId == actorUserId && candidate.PinStatus == ActiveStatus)
+            .OrderBy(candidate => candidate.Id)
+            .Take(2)
+            .ToListAsync(cancellationToken);
+
+        return staffAccesses.Count switch
+        {
+            0 => throw new ValidationException([new ValidationFailure("staffAccess", "No active staff access record is available for this business user.")]),
+            1 => staffAccesses[0],
+            _ => throw new ValidationException([new ValidationFailure("staffAccess", "Ambiguous staff access context for this business user.")]),
+        };
     }
 
     private async Task<LoyaltyPointsRuleEntity> GetActiveRuleAsync(CancellationToken cancellationToken)
