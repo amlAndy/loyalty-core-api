@@ -627,6 +627,7 @@ public sealed class DevelopmentIdentitySeeder
         if (await _dbContext.MemberProfiles.AnyAsync(cancellationToken))
         {
             await EnsureBusinessProfilesAsync(users, cancellationToken);
+            await EnsureBusinessStaffAccessesAsync(users, cancellationToken);
             return;
         }
         var members = new[]
@@ -667,13 +668,7 @@ public sealed class DevelopmentIdentitySeeder
             UpdatedUtc = created
         }));
 
-        var staff = new[]
-        {
-            CreateStaff("44444444-4444-4444-4444-444444444401", businesses[0].Id, users["eleanor.price@love-brackley.local"], "Eleanor Price", "Manager", "Active"),
-            CreateStaff("44444444-4444-4444-4444-444444444402", businesses[0].Id, users["marcus.reed@love-brackley.local"], "Marcus Reed", "Staff", "Active"),
-            CreateStaff("44444444-4444-4444-4444-444444444403", businesses[0].Id, users["aisha.khan@love-brackley.local"], "Aisha Khan", "Admin", "ResetRequired"),
-            CreateStaff("44444444-4444-4444-4444-444444444404", businesses[1].Id, users["leo.martin@love-brackley.local"], "Leo Martin", "Staff", "Held")
-        };
+        var staff = CreateSeedBusinessStaffAccesses(users, businesses);
         _dbContext.BusinessStaffAccesses.AddRange(staff);
 
         _dbContext.LoyaltyPointsRules.Add(new LoyaltyPointsRuleEntity
@@ -775,6 +770,57 @@ public sealed class DevelopmentIdentitySeeder
         await _dbContext.SaveChangesAsync(cancellationToken);
     }
 
+    private async Task EnsureBusinessStaffAccessesAsync(IReadOnlyDictionary<string, string> users, CancellationToken cancellationToken)
+    {
+        var seedBusinesses = CreateSeedBusinesses(users);
+        var seededStaffAccesses = CreateSeedBusinessStaffAccesses(users, seedBusinesses);
+        var existingStaffAccesses = await _dbContext.BusinessStaffAccesses.ToListAsync(cancellationToken);
+
+        foreach (var seededStaffAccess in seededStaffAccesses)
+        {
+            var existingById = existingStaffAccesses.FirstOrDefault(candidate => candidate.Id == seededStaffAccess.Id);
+            if (existingById is not null)
+            {
+                ApplyStaffAccessSeed(existingById, seededStaffAccess);
+                continue;
+            }
+
+            var matchingBusinessAndUser = existingStaffAccesses
+                .Where(candidate =>
+                    candidate.BusinessProfileId == seededStaffAccess.BusinessProfileId &&
+                    candidate.UserId == seededStaffAccess.UserId)
+                .Take(2)
+                .ToList();
+
+            if (matchingBusinessAndUser.Count == 1)
+            {
+                ApplyStaffAccessSeed(matchingBusinessAndUser[0], seededStaffAccess);
+                continue;
+            }
+
+            if (matchingBusinessAndUser.Count == 0)
+            {
+                _dbContext.BusinessStaffAccesses.Add(seededStaffAccess);
+                existingStaffAccesses.Add(seededStaffAccess);
+            }
+        }
+
+        await _dbContext.SaveChangesAsync(cancellationToken);
+    }
+
+    private static void ApplyStaffAccessSeed(BusinessStaffAccessEntity existingStaffAccess, BusinessStaffAccessEntity seededStaffAccess)
+    {
+        existingStaffAccess.BusinessProfileId = seededStaffAccess.BusinessProfileId;
+        existingStaffAccess.UserId = seededStaffAccess.UserId;
+        existingStaffAccess.DisplayName = seededStaffAccess.DisplayName;
+        existingStaffAccess.BusinessAccessRole = seededStaffAccess.BusinessAccessRole;
+        existingStaffAccess.PinHash = seededStaffAccess.PinHash;
+        existingStaffAccess.PinStatus = seededStaffAccess.PinStatus;
+        existingStaffAccess.LastActivitySummary = seededStaffAccess.LastActivitySummary;
+        existingStaffAccess.LastActivityUtc = seededStaffAccess.LastActivityUtc;
+        existingStaffAccess.UpdatedUtc = seededStaffAccess.UpdatedUtc;
+    }
+
     private static BusinessProfileEntity[] CreateSeedBusinesses(IReadOnlyDictionary<string, string> users)
     {
         return
@@ -787,6 +833,17 @@ public sealed class DevelopmentIdentitySeeder
             CreateBusiness("22222222-2222-2222-2222-222222222206", users["owner.foxpantry@love-brackley.local"], "Fox Lane Pantry", "LB-BIZ-2006", "Deli", GroceriesCategoryId, "Pantry staples, deli counter, and local hampers.", "Fox Lane", "7 Fox Lane", "NN13 7FN", false),
             CreateBusiness("22222222-2222-2222-2222-222222222207", users["owner.riverside@love-brackley.local"], "Riverside Market Kitchen", "LB-BIZ-2007", "Food & Drink", FoodAndDrinkCategoryId, "Riverside breakfasts, lunches, and community suppers.", "Riverside", "1 Riverside Walk", "NN13 7GR", true),
             CreateBusiness("22222222-2222-2222-2222-222222222208", users["owner.greenpantry@love-brackley.local"], "Green Pantry", "LB-BIZ-2008", "Deli", GroceriesCategoryId, "Local pantry staples, fresh produce, and neighbourhood essentials.", "Green Pantry Corner", "15 Market Place", "NN13 7AJ", true)
+        ];
+    }
+
+    private static BusinessStaffAccessEntity[] CreateSeedBusinessStaffAccesses(IReadOnlyDictionary<string, string> users, IReadOnlyList<BusinessProfileEntity> businesses)
+    {
+        return
+        [
+            CreateStaff("44444444-4444-4444-4444-444444444401", businesses[0].Id, users["eleanor.price@love-brackley.local"], "Eleanor Price", "Manager", "Active"),
+            CreateStaff("44444444-4444-4444-4444-444444444402", businesses[0].Id, users["marcus.reed@love-brackley.local"], "Marcus Reed", "Staff", "Active"),
+            CreateStaff("44444444-4444-4444-4444-444444444403", businesses[0].Id, users["aisha.khan@love-brackley.local"], "Aisha Khan", "Admin", "ResetRequired"),
+            CreateStaff("44444444-4444-4444-4444-444444444404", businesses[1].Id, users["leo.martin@love-brackley.local"], "Leo Martin", "Staff", "Held")
         ];
     }
 
