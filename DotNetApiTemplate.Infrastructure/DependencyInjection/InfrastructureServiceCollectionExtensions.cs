@@ -83,7 +83,12 @@ public static class InfrastructureServiceCollectionExtensions
         {
             options.AddPolicy(
                 AdminAuthorizationPolicies.AdminAccess,
-                policy => policy.RequireRole(ApplicationRoleNames.AdminRoles));
+                policy =>
+                {
+                    policy.RequireAuthenticatedUser();
+                    policy.RequireRole(ApplicationRoleNames.AdminRoles);
+                    policy.AddRequirements(new ActiveRoleRequirement(ApplicationRoleNames.AdminRoles));
+                });
 
             options.AddPolicy(
                 ActiveRolePolicies.Member,
