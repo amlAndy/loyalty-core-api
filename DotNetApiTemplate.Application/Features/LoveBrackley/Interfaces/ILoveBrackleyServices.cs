@@ -56,8 +56,8 @@ public interface IAdminLoveBrackleyService
     Task<AdminBusinessDto?> SetBusinessStatusAsync(Guid businessId, string status, string action, string? actorUserId, CancellationToken cancellationToken);
     Task<PagedResponse<AdminMemberDto>> SearchMembersAsync(string? searchTerm, string? status, int page, int pageSize, CancellationToken cancellationToken);
     Task<AdminMemberDto?> CreateMemberAsync(CreateAdminMemberRequest request, CancellationToken cancellationToken);
-    Task<AdminMemberDto?> GetMemberAsync(Guid memberId, CancellationToken cancellationToken);
-    Task<AdminMemberDto?> UpdateMemberAsync(Guid memberId, UpdateMemberSettingsRequest request, CancellationToken cancellationToken);
+    Task<AdminMemberDetailDto?> GetMemberAsync(Guid memberId, CancellationToken cancellationToken);
+    Task<AdminMemberDetailDto?> UpdateMemberAsync(Guid memberId, UpdateMemberSettingsRequest request, CancellationToken cancellationToken);
     Task<AdminMemberDto?> SetMemberStatusAsync(Guid memberId, string status, CancellationToken cancellationToken);
     Task<LoyaltyTransactionDto?> AdjustPointsAsync(Guid memberId, AdjustPointsRequest request, string? actorUserId, CancellationToken cancellationToken);
     Task<PagedResponse<AdminReviewCaseDto>> SearchReviewsAsync(string? caseType, string? status, string? priority, int page, int pageSize, CancellationToken cancellationToken);

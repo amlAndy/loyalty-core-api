@@ -75,17 +75,17 @@ public sealed class LoveBrackleyAdminController : ControllerBase
     }
 
     [HttpGet("members/{memberId:guid}")]
-    public async Task<ActionResult<DataResponse<AdminMemberDto>>> GetMember(Guid memberId, CancellationToken cancellationToken)
+    public async Task<ActionResult<DataResponse<AdminMemberDetailDto>>> GetMember(Guid memberId, CancellationToken cancellationToken)
     {
         var result = await _adminService.GetMemberAsync(memberId, cancellationToken);
-        return result is null ? NotFound() : Ok(new DataResponse<AdminMemberDto>(result));
+        return result is null ? NotFound() : Ok(new DataResponse<AdminMemberDetailDto>(result));
     }
 
     [HttpPut("members/{memberId:guid}")]
-    public async Task<ActionResult<DataResponse<AdminMemberDto>>> UpdateMember(Guid memberId, [FromBody] UpdateMemberSettingsRequest request, CancellationToken cancellationToken)
+    public async Task<ActionResult<DataResponse<AdminMemberDetailDto>>> UpdateMember(Guid memberId, [FromBody] UpdateMemberSettingsRequest request, CancellationToken cancellationToken)
     {
         var result = await _adminService.UpdateMemberAsync(memberId, request, cancellationToken);
-        return result is null ? NotFound() : Ok(new DataResponse<AdminMemberDto>(result));
+        return result is null ? NotFound() : Ok(new DataResponse<AdminMemberDetailDto>(result));
     }
 
     [HttpPost("members/{memberId:guid}/lock")]

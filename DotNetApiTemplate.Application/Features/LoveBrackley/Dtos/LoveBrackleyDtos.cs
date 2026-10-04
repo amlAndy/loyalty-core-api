@@ -294,6 +294,23 @@ public sealed record AdminMemberDto(
     DateTimeOffset CreatedUtc,
     DateTimeOffset UpdatedUtc);
 
+public sealed record AdminMemberDetailDto(
+    Guid Id,
+    string UserId,
+    string PublicMemberReference,
+    string DisplayName,
+    string? Email,
+    string? MobileNumber,
+    string? HomeArea,
+    bool MarketingConsent,
+    bool EmailUpdatesPreference,
+    bool LocalOffersPreference,
+    bool CardReminderPreference,
+    string Status,
+    int PointsBalance,
+    DateTimeOffset CreatedUtc,
+    DateTimeOffset UpdatedUtc);
+
 public sealed record AdminReviewCaseDto(
     Guid Id,
     string CaseType,

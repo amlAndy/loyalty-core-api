@@ -788,13 +788,13 @@ public sealed class LoveBrackleyService : IMemberLoyaltyService, ILoveBrackleyLo
         return ToAdminMemberDto(member);
     }
 
-    public async Task<AdminMemberDto?> GetMemberAsync(Guid memberId, CancellationToken cancellationToken)
+    public async Task<AdminMemberDetailDto?> GetMemberAsync(Guid memberId, CancellationToken cancellationToken)
     {
         var member = await _dbContext.MemberProfiles.AsNoTracking().SingleOrDefaultAsync(candidate => candidate.Id == memberId, cancellationToken);
-        return member is null ? null : ToAdminMemberDto(member);
+        return member is null ? null : ToAdminMemberDetailDto(member);
     }
 
-    public async Task<AdminMemberDto?> UpdateMemberAsync(Guid memberId, UpdateMemberSettingsRequest request, CancellationToken cancellationToken)
+    public async Task<AdminMemberDetailDto?> UpdateMemberAsync(Guid memberId, UpdateMemberSettingsRequest request, CancellationToken cancellationToken)
     {
         var member = await _dbContext.MemberProfiles.SingleOrDefaultAsync(candidate => candidate.Id == memberId, cancellationToken);
         if (member is null)
@@ -811,7 +811,7 @@ public sealed class LoveBrackleyService : IMemberLoyaltyService, ILoveBrackleyLo
         member.CardReminderPreference = request.CardReminderPreference;
         member.UpdatedUtc = DateTimeOffset.UtcNow;
         await _dbContext.SaveChangesAsync(cancellationToken);
-        return ToAdminMemberDto(member);
+        return ToAdminMemberDetailDto(member);
     }
 
     public async Task<AdminMemberDto?> SetMemberStatusAsync(Guid memberId, string status, CancellationToken cancellationToken)
@@ -1292,6 +1292,26 @@ public sealed class LoveBrackleyService : IMemberLoyaltyService, ILoveBrackleyLo
     private static AdminMemberDto ToAdminMemberDto(MemberProfileEntity member)
     {
         return new AdminMemberDto(member.Id, member.UserId, member.PublicMemberReference, member.DisplayName, member.Email, member.Status, member.PointsBalance, member.CreatedUtc, member.UpdatedUtc);
+    }
+
+    private static AdminMemberDetailDto ToAdminMemberDetailDto(MemberProfileEntity member)
+    {
+        return new AdminMemberDetailDto(
+            member.Id,
+            member.UserId,
+            member.PublicMemberReference,
+            member.DisplayName,
+            member.Email,
+            member.MobileNumber,
+            member.HomeArea,
+            member.MarketingConsent,
+            member.EmailUpdatesPreference,
+            member.LocalOffersPreference,
+            member.CardReminderPreference,
+            member.Status,
+            member.PointsBalance,
+            member.CreatedUtc,
+            member.UpdatedUtc);
     }
 
     private static AdminReviewCaseDto ToReviewDto(AdminReviewCaseEntity reviewCase)
