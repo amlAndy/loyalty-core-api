@@ -2,6 +2,7 @@ using AutoMapper;
 using DotNetApiTemplate.Api.Contracts.Requests.Admin;
 using DotNetApiTemplate.Api.Contracts.Responses.Admin;
 using DotNetApiTemplate.Application.Features.Admin.Authorization;
+using DotNetApiTemplate.Application.Features.Admin.Users;
 using DotNetApiTemplate.Application.Features.Admin.Users.Dtos;
 using DotNetApiTemplate.Application.Features.Admin.Users.Interfaces;
 using FluentValidation;
@@ -16,14 +17,17 @@ namespace DotNetApiTemplate.Api.Controllers;
 public sealed class AdminUsersController : ControllerBase
 {
     private readonly IMapper _mapper;
+    private readonly IAuthorizationService _authorizationService;
     private readonly IAdminUserService _adminUserService;
 
-    public AdminUsersController(IMapper mapper, IAdminUserService adminUserService)
+    public AdminUsersController(IMapper mapper, IAuthorizationService authorizationService, IAdminUserService adminUserService)
     {
         _mapper = mapper;
+        _authorizationService = authorizationService;
         _adminUserService = adminUserService;
     }
 
+    [Authorize(Policy = AdminPermissionPolicies.UsersDelete)]
     [HttpDelete("{id}")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
@@ -46,6 +50,7 @@ public sealed class AdminUsersController : ControllerBase
         }
     }
 
+    [Authorize(Policy = AdminPermissionPolicies.UsersCreate)]
     [HttpPost]
     [ProducesResponseType(typeof(AdminUserDetailDto), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
@@ -58,6 +63,17 @@ public sealed class AdminUsersController : ControllerBase
         try
         {
             var model = _mapper.Map<AdminUserUpsertModel>(request);
+
+            if (model.RoleIds.Length > 0 && !await HasPermissionAsync(AdminPermissionPolicies.RolesAssign, cancellationToken))
+            {
+                return Forbid();
+            }
+
+            if (RequiresStatusPermissionOnCreate(model.Status) && !await HasPermissionAsync(AdminPermissionPolicies.UsersDeactivate, cancellationToken))
+            {
+                return Forbid();
+            }
+
             var result = await _adminUserService.CreateAsync(model, cancellationToken);
 
             return Ok(_mapper.Map<AdminUserDetailDto>(result));
@@ -68,6 +84,7 @@ public sealed class AdminUsersController : ControllerBase
         }
     }
 
+    [Authorize(Policy = AdminPermissionPolicies.UsersView)]
     [HttpGet("form-options")]
     [ProducesResponseType(typeof(AdminUserFormOptionsDto), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]
@@ -80,6 +97,7 @@ public sealed class AdminUsersController : ControllerBase
         return Ok(_mapper.Map<AdminUserFormOptionsDto>(result));
     }
 
+    [Authorize(Policy = AdminPermissionPolicies.UsersView)]
     [HttpGet("{id}")]
     [ProducesResponseType(typeof(AdminUserDetailDto), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]
@@ -99,6 +117,7 @@ public sealed class AdminUsersController : ControllerBase
         return Ok(_mapper.Map<AdminUserDetailDto>(user));
     }
 
+    [Authorize(Policy = AdminPermissionPolicies.UsersUpdate)]
     [HttpPut("{id}")]
     [ProducesResponseType(typeof(AdminUserDetailDto), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
@@ -112,7 +131,26 @@ public sealed class AdminUsersController : ControllerBase
     {
         try
         {
+            var existingUser = await _adminUserService.GetByIdAsync(id, cancellationToken);
+
+            if (existingUser is null)
+            {
+                return NotFound();
+            }
+
             var model = _mapper.Map<AdminUserUpsertModel>(request);
+
+            if (RoleIdsChanged(existingUser.RoleIds, model.RoleIds) && !await HasPermissionAsync(AdminPermissionPolicies.RolesAssign, cancellationToken))
+            {
+                return Forbid();
+            }
+
+            var statusPermission = GetStatusTransitionPermission(existingUser.Status, model.Status);
+            if (statusPermission is not null && !await HasPermissionAsync(statusPermission, cancellationToken))
+            {
+                return Forbid();
+            }
+
             var result = await _adminUserService.UpdateAsync(id, model, cancellationToken);
 
             if (result is null)
@@ -128,6 +166,7 @@ public sealed class AdminUsersController : ControllerBase
         }
     }
 
+    [Authorize(Policy = AdminPermissionPolicies.UsersView)]
     [HttpPost("search")]
     [ProducesResponseType(typeof(AdminUserSearchResponseDto), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
@@ -141,6 +180,37 @@ public sealed class AdminUsersController : ControllerBase
         var result = await _adminUserService.SearchUsersAsync(criteria, cancellationToken);
 
         return Ok(_mapper.Map<AdminUserSearchResponseDto>(result));
+    }
+
+    private async Task<bool> HasPermissionAsync(string policyName, CancellationToken cancellationToken)
+    {
+        var result = await _authorizationService.AuthorizeAsync(User, resource: null, policyName);
+        return result.Succeeded;
+    }
+
+    private static bool RoleIdsChanged(IReadOnlyCollection<string> existingRoleIds, IReadOnlyCollection<string> requestedRoleIds)
+    {
+        return !new HashSet<string>(existingRoleIds, StringComparer.Ordinal).SetEquals(requestedRoleIds);
+    }
+
+    private static bool RequiresStatusPermissionOnCreate(string requestedStatus)
+    {
+        return !string.Equals(requestedStatus, AdminUserStatuses.Active, StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static string? GetStatusTransitionPermission(string currentStatus, string requestedStatus)
+    {
+        if (string.Equals(currentStatus, requestedStatus, StringComparison.OrdinalIgnoreCase))
+        {
+            return null;
+        }
+
+        if (string.Equals(requestedStatus, AdminUserStatuses.Active, StringComparison.OrdinalIgnoreCase))
+        {
+            return AdminPermissionPolicies.UsersActivate;
+        }
+
+        return AdminPermissionPolicies.UsersDeactivate;
     }
 
     private ActionResult CreateValidationProblem(ValidationException exception)

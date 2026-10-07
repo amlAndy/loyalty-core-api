@@ -23,6 +23,7 @@ public sealed class AdminAuditController : ControllerBase
         _auditService = auditService;
     }
 
+    [Authorize(Policy = AdminPermissionPolicies.AuditView)]
     [HttpGet]
     [ProducesResponseType(typeof(AuditSearchResponseDto), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]
@@ -37,6 +38,7 @@ public sealed class AdminAuditController : ControllerBase
         return Ok(_mapper.Map<AuditSearchResponseDto>(result));
     }
 
+    [Authorize(Policy = AdminPermissionPolicies.AuditView)]
     [HttpGet("filters")]
     [ProducesResponseType(typeof(AuditFilterOptionsDto), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]

@@ -16,14 +16,17 @@ namespace DotNetApiTemplate.Api.Controllers;
 public sealed class AdminRolesController : ControllerBase
 {
     private readonly IMapper _mapper;
+    private readonly IAuthorizationService _authorizationService;
     private readonly IAdminRoleService _adminRoleService;
 
-    public AdminRolesController(IMapper mapper, IAdminRoleService adminRoleService)
+    public AdminRolesController(IMapper mapper, IAuthorizationService authorizationService, IAdminRoleService adminRoleService)
     {
         _mapper = mapper;
+        _authorizationService = authorizationService;
         _adminRoleService = adminRoleService;
     }
 
+    [Authorize(Policy = AdminPermissionPolicies.RolesView)]
     [HttpPost("search")]
     [ProducesResponseType(typeof(AdminRoleSearchResponseDto), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
@@ -39,6 +42,7 @@ public sealed class AdminRolesController : ControllerBase
         return Ok(_mapper.Map<AdminRoleSearchResponseDto>(result));
     }
 
+    [Authorize(Policy = AdminPermissionPolicies.RolesView)]
     [HttpGet("parent-options")]
     [ProducesResponseType(typeof(AdminRoleParentOptionDto[]), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]
@@ -52,6 +56,7 @@ public sealed class AdminRolesController : ControllerBase
         return Ok(_mapper.Map<AdminRoleParentOptionDto[]>(result));
     }
 
+    [Authorize(Policy = AdminPermissionPolicies.PermissionsView)]
     [HttpGet("available-permissions")]
     [ProducesResponseType(typeof(string[]), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]
@@ -65,6 +70,7 @@ public sealed class AdminRolesController : ControllerBase
         return Ok(result);
     }
 
+    [Authorize(Policy = AdminPermissionPolicies.PermissionsView)]
     [HttpPost("validate-permissions")]
     [ProducesResponseType(typeof(string[]), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
@@ -87,6 +93,7 @@ public sealed class AdminRolesController : ControllerBase
         }
     }
 
+    [Authorize(Policy = AdminPermissionPolicies.RolesView)]
     [HttpGet("form-options")]
     [ProducesResponseType(typeof(AdminRoleFormOptionsDto), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]
@@ -101,6 +108,7 @@ public sealed class AdminRolesController : ControllerBase
         return Ok(_mapper.Map<AdminRoleFormOptionsDto>(result));
     }
 
+    [Authorize(Policy = AdminPermissionPolicies.RolesView)]
     [HttpGet("{id}/delete-eligibility")]
     [ProducesResponseType(typeof(AdminRoleDeleteEligibilityDto), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]
@@ -120,6 +128,7 @@ public sealed class AdminRolesController : ControllerBase
         return Ok(_mapper.Map<AdminRoleDeleteEligibilityDto>(result));
     }
 
+    [Authorize(Policy = AdminPermissionPolicies.RolesView)]
     [HttpGet("{id}/children")]
     [ProducesResponseType(typeof(AdminRoleSummaryDto[]), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]
@@ -133,6 +142,7 @@ public sealed class AdminRolesController : ControllerBase
         return Ok(_mapper.Map<AdminRoleSummaryDto[]>(result));
     }
 
+    [Authorize(Policy = AdminPermissionPolicies.RolesView)]
     [HttpGet("{id}")]
     [ProducesResponseType(typeof(AdminRoleDetailDto), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]
@@ -152,6 +162,7 @@ public sealed class AdminRolesController : ControllerBase
         return Ok(_mapper.Map<AdminRoleDetailDto>(role));
     }
 
+    [Authorize(Policy = AdminPermissionPolicies.RolesCreate)]
     [HttpPost]
     [ProducesResponseType(typeof(AdminRoleDetailDto), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
@@ -164,6 +175,12 @@ public sealed class AdminRolesController : ControllerBase
         try
         {
             var model = _mapper.Map<AdminRoleUpsertModel>(request);
+
+            if (model.Permissions.Length > 0 && !await HasPermissionAsync(AdminPermissionPolicies.PermissionsAssign, cancellationToken))
+            {
+                return Forbid();
+            }
+
             var result = await _adminRoleService.CreateAsync(model, cancellationToken);
 
             return Ok(_mapper.Map<AdminRoleDetailDto>(result));
@@ -174,6 +191,7 @@ public sealed class AdminRolesController : ControllerBase
         }
     }
 
+    [Authorize(Policy = AdminPermissionPolicies.RolesUpdate)]
     [HttpPut("{id}")]
     [ProducesResponseType(typeof(AdminRoleDetailDto), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
@@ -187,7 +205,20 @@ public sealed class AdminRolesController : ControllerBase
     {
         try
         {
+            var existingRole = await _adminRoleService.GetByIdAsync(id, cancellationToken);
+
+            if (existingRole is null)
+            {
+                return NotFound();
+            }
+
             var model = _mapper.Map<AdminRoleUpsertModel>(request);
+
+            if (!PermissionsEqual(existingRole.Permissions, model.Permissions) && !await HasPermissionAsync(AdminPermissionPolicies.PermissionsAssign, cancellationToken))
+            {
+                return Forbid();
+            }
+
             var result = await _adminRoleService.UpdateAsync(id, model, cancellationToken);
 
             if (result is null)
@@ -203,6 +234,7 @@ public sealed class AdminRolesController : ControllerBase
         }
     }
 
+    [Authorize(Policy = AdminPermissionPolicies.RolesDelete)]
     [HttpDelete("{id}")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
@@ -223,6 +255,17 @@ public sealed class AdminRolesController : ControllerBase
         {
             return CreateValidationProblem(exception);
         }
+    }
+
+    private async Task<bool> HasPermissionAsync(string policyName, CancellationToken cancellationToken)
+    {
+        var result = await _authorizationService.AuthorizeAsync(User, resource: null, policyName);
+        return result.Succeeded;
+    }
+
+    private static bool PermissionsEqual(IReadOnlyCollection<string> existingPermissions, IReadOnlyCollection<string> requestedPermissions)
+    {
+        return new HashSet<string>(existingPermissions, StringComparer.Ordinal).SetEquals(requestedPermissions);
     }
 
     private ActionResult CreateValidationProblem(ValidationException exception)

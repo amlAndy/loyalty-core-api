@@ -19,18 +19,21 @@ public sealed class LoveBrackleyAdminController : ControllerBase
         _adminService = adminService;
     }
 
+    [Authorize(Policy = AdminPermissionPolicies.AdminView)]
     [HttpGet("dashboard")]
     public async Task<ActionResult<DataResponse<AdminDashboardDto>>> GetDashboard(CancellationToken cancellationToken)
     {
         return Ok(new DataResponse<AdminDashboardDto>(await _adminService.GetDashboardAsync(cancellationToken)));
     }
 
+    [Authorize(Policy = AdminPermissionPolicies.AdminView)]
     [HttpGet("businesses")]
     public async Task<ActionResult<DataResponse<PagedResponse<AdminBusinessDto>>>> SearchBusinesses([FromQuery] string? searchTerm, [FromQuery] string? status, [FromQuery] int page = 1, [FromQuery] int pageSize = 20, CancellationToken cancellationToken = default)
     {
         return Ok(new DataResponse<PagedResponse<AdminBusinessDto>>(await _adminService.SearchBusinessesAsync(searchTerm, status, page, pageSize, cancellationToken)));
     }
 
+    [Authorize(Policy = AdminPermissionPolicies.AdminConfigure)]
     [HttpPost("businesses")]
     public async Task<ActionResult<DataResponse<AdminBusinessDto>>> CreateBusiness([FromBody] CreateAdminBusinessRequest request, CancellationToken cancellationToken)
     {
@@ -38,6 +41,7 @@ public sealed class LoveBrackleyAdminController : ControllerBase
         return Ok(new DataResponse<AdminBusinessDto>(result!));
     }
 
+    [Authorize(Policy = AdminPermissionPolicies.AdminView)]
     [HttpGet("businesses/{businessId:guid}")]
     public async Task<ActionResult<DataResponse<BusinessSettingsDto>>> GetBusiness(Guid businessId, CancellationToken cancellationToken)
     {
@@ -45,6 +49,7 @@ public sealed class LoveBrackleyAdminController : ControllerBase
         return result is null ? NotFound() : Ok(new DataResponse<BusinessSettingsDto>(result));
     }
 
+    [Authorize(Policy = AdminPermissionPolicies.AdminConfigure)]
     [HttpPut("businesses/{businessId:guid}")]
     public async Task<ActionResult<DataResponse<BusinessSettingsDto>>> UpdateBusiness(Guid businessId, [FromBody] UpdateBusinessSettingsRequest request, CancellationToken cancellationToken)
     {
@@ -52,21 +57,26 @@ public sealed class LoveBrackleyAdminController : ControllerBase
         return result is null ? NotFound() : Ok(new DataResponse<BusinessSettingsDto>(result));
     }
 
+    [Authorize(Policy = AdminPermissionPolicies.AdminConfigure)]
     [HttpPost("businesses/{businessId:guid}/approve")]
     public async Task<ActionResult<DataResponse<AdminBusinessDto>>> ApproveBusiness(Guid businessId, CancellationToken cancellationToken) => await SetBusinessStatus(businessId, "Active", "Approve", cancellationToken);
 
+    [Authorize(Policy = AdminPermissionPolicies.AdminConfigure)]
     [HttpPost("businesses/{businessId:guid}/suspend")]
     public async Task<ActionResult<DataResponse<AdminBusinessDto>>> SuspendBusiness(Guid businessId, CancellationToken cancellationToken) => await SetBusinessStatus(businessId, "Suspended", "Suspend", cancellationToken);
 
+    [Authorize(Policy = AdminPermissionPolicies.AdminConfigure)]
     [HttpPost("businesses/{businessId:guid}/reactivate")]
     public async Task<ActionResult<DataResponse<AdminBusinessDto>>> ReactivateBusiness(Guid businessId, CancellationToken cancellationToken) => await SetBusinessStatus(businessId, "Active", "Reactivate", cancellationToken);
 
+    [Authorize(Policy = AdminPermissionPolicies.AdminView)]
     [HttpGet("members")]
     public async Task<ActionResult<DataResponse<PagedResponse<AdminMemberDto>>>> SearchMembers([FromQuery] string? searchTerm, [FromQuery] string? status, [FromQuery] int page = 1, [FromQuery] int pageSize = 20, CancellationToken cancellationToken = default)
     {
         return Ok(new DataResponse<PagedResponse<AdminMemberDto>>(await _adminService.SearchMembersAsync(searchTerm, status, page, pageSize, cancellationToken)));
     }
 
+    [Authorize(Policy = AdminPermissionPolicies.AdminConfigure)]
     [HttpPost("members")]
     public async Task<ActionResult<DataResponse<AdminMemberDto>>> CreateMember([FromBody] CreateAdminMemberRequest request, CancellationToken cancellationToken)
     {
@@ -74,6 +84,7 @@ public sealed class LoveBrackleyAdminController : ControllerBase
         return Ok(new DataResponse<AdminMemberDto>(result!));
     }
 
+    [Authorize(Policy = AdminPermissionPolicies.AdminView)]
     [HttpGet("members/{memberId:guid}")]
     public async Task<ActionResult<DataResponse<AdminMemberDetailDto>>> GetMember(Guid memberId, CancellationToken cancellationToken)
     {
@@ -81,6 +92,7 @@ public sealed class LoveBrackleyAdminController : ControllerBase
         return result is null ? NotFound() : Ok(new DataResponse<AdminMemberDetailDto>(result));
     }
 
+    [Authorize(Policy = AdminPermissionPolicies.AdminConfigure)]
     [HttpPut("members/{memberId:guid}")]
     public async Task<ActionResult<DataResponse<AdminMemberDetailDto>>> UpdateMember(Guid memberId, [FromBody] UpdateMemberSettingsRequest request, CancellationToken cancellationToken)
     {
@@ -88,6 +100,7 @@ public sealed class LoveBrackleyAdminController : ControllerBase
         return result is null ? NotFound() : Ok(new DataResponse<AdminMemberDetailDto>(result));
     }
 
+    [Authorize(Policy = AdminPermissionPolicies.AdminConfigure)]
     [HttpPost("members/{memberId:guid}/lock")]
     public async Task<ActionResult<DataResponse<AdminMemberDto>>> LockMember(Guid memberId, CancellationToken cancellationToken)
     {
@@ -95,6 +108,7 @@ public sealed class LoveBrackleyAdminController : ControllerBase
         return result is null ? NotFound() : Ok(new DataResponse<AdminMemberDto>(result));
     }
 
+    [Authorize(Policy = AdminPermissionPolicies.AdminConfigure)]
     [HttpPost("members/{memberId:guid}/unlock")]
     public async Task<ActionResult<DataResponse<AdminMemberDto>>> UnlockMember(Guid memberId, CancellationToken cancellationToken)
     {
@@ -102,6 +116,7 @@ public sealed class LoveBrackleyAdminController : ControllerBase
         return result is null ? NotFound() : Ok(new DataResponse<AdminMemberDto>(result));
     }
 
+    [Authorize(Policy = AdminPermissionPolicies.AdminConfigure)]
     [HttpPost("members/{memberId:guid}/adjust-points")]
     public async Task<ActionResult<DataResponse<LoyaltyTransactionDto>>> AdjustPoints(Guid memberId, [FromBody] AdjustPointsRequest request, CancellationToken cancellationToken)
     {
@@ -116,12 +131,14 @@ public sealed class LoveBrackleyAdminController : ControllerBase
         }
     }
 
+    [Authorize(Policy = AdminPermissionPolicies.AdminView)]
     [HttpGet("reviews")]
     public async Task<ActionResult<DataResponse<PagedResponse<AdminReviewCaseDto>>>> SearchReviews([FromQuery] string? caseType, [FromQuery] string? status, [FromQuery] string? priority, [FromQuery] int page = 1, [FromQuery] int pageSize = 20, CancellationToken cancellationToken = default)
     {
         return Ok(new DataResponse<PagedResponse<AdminReviewCaseDto>>(await _adminService.SearchReviewsAsync(caseType, status, priority, page, pageSize, cancellationToken)));
     }
 
+    [Authorize(Policy = AdminPermissionPolicies.AdminView)]
     [HttpGet("reviews/{caseId:guid}")]
     public async Task<ActionResult<DataResponse<AdminReviewCaseDto>>> GetReview(Guid caseId, CancellationToken cancellationToken)
     {
@@ -129,6 +146,7 @@ public sealed class LoveBrackleyAdminController : ControllerBase
         return result is null ? NotFound() : Ok(new DataResponse<AdminReviewCaseDto>(result));
     }
 
+    [Authorize(Policy = AdminPermissionPolicies.AdminConfigure)]
     [HttpPost("reviews/{caseId:guid}/resolve")]
     public async Task<ActionResult<DataResponse<AdminReviewCaseDto>>> ResolveReview(Guid caseId, [FromBody] ResolveReviewCaseRequest request, CancellationToken cancellationToken)
     {
@@ -136,6 +154,7 @@ public sealed class LoveBrackleyAdminController : ControllerBase
         return result is null ? NotFound() : Ok(new DataResponse<AdminReviewCaseDto>(result));
     }
 
+    [Authorize(Policy = AdminPermissionPolicies.AdminConfigure)]
     [HttpPost("reviews/{caseId:guid}/escalate")]
     public async Task<ActionResult<DataResponse<AdminReviewCaseDto>>> EscalateReview(Guid caseId, [FromBody] EscalateReviewCaseRequest request, CancellationToken cancellationToken)
     {
@@ -143,24 +162,28 @@ public sealed class LoveBrackleyAdminController : ControllerBase
         return result is null ? NotFound() : Ok(new DataResponse<AdminReviewCaseDto>(result));
     }
 
+    [Authorize(Policy = AdminPermissionPolicies.AdminView)]
     [HttpGet("transactions")]
     public async Task<ActionResult<DataResponse<PagedResponse<LoyaltyTransactionDto>>>> SearchTransactions([FromQuery] Guid? businessId, [FromQuery] Guid? memberId, [FromQuery] string? transactionType, [FromQuery] string? status, [FromQuery] int page = 1, [FromQuery] int pageSize = 20, CancellationToken cancellationToken = default)
     {
         return Ok(new DataResponse<PagedResponse<LoyaltyTransactionDto>>(await _adminService.SearchTransactionsAsync(businessId, memberId, transactionType, status, page, pageSize, cancellationToken)));
     }
 
+    [Authorize(Policy = AdminPermissionPolicies.AdminView)]
     [HttpGet("access")]
     public async Task<ActionResult<DataResponse<PagedResponse<BusinessStaffAccessRecordDto>>>> SearchAccess([FromQuery] Guid? businessId, [FromQuery] string? status, [FromQuery] int page = 1, [FromQuery] int pageSize = 20, CancellationToken cancellationToken = default)
     {
         return Ok(new DataResponse<PagedResponse<BusinessStaffAccessRecordDto>>(await _adminService.SearchAccessAsync(businessId, status, page, pageSize, cancellationToken)));
     }
 
+    [Authorize(Policy = AdminPermissionPolicies.AdminView)]
     [HttpGet("payouts")]
     public async Task<ActionResult<DataResponse<PagedResponse<BusinessPayoutDto>>>> SearchPayouts([FromQuery] Guid? businessId, [FromQuery] string? status, [FromQuery] int page = 1, [FromQuery] int pageSize = 20, CancellationToken cancellationToken = default)
     {
         return Ok(new DataResponse<PagedResponse<BusinessPayoutDto>>(await _adminService.SearchPayoutsAsync(businessId, status, page, pageSize, cancellationToken)));
     }
 
+    [Authorize(Policy = AdminPermissionPolicies.AdminView)]
     [HttpGet("settings/points-rule")]
     public async Task<ActionResult<DataResponse<PointsRuleDto>>> GetPointsRule(CancellationToken cancellationToken)
     {
@@ -168,6 +191,7 @@ public sealed class LoveBrackleyAdminController : ControllerBase
         return result is null ? NotFound() : Ok(new DataResponse<PointsRuleDto>(result));
     }
 
+    [Authorize(Policy = AdminPermissionPolicies.AdminConfigure)]
     [HttpPut("settings/points-rule")]
     public async Task<ActionResult<DataResponse<PointsRuleDto>>> UpdatePointsRule([FromBody] UpdatePointsRuleRequest request, CancellationToken cancellationToken)
     {
@@ -182,6 +206,7 @@ public sealed class LoveBrackleyAdminController : ControllerBase
         }
     }
 
+    [Authorize(Policy = AdminPermissionPolicies.AuditView)]
     [HttpGet("love-brackley-audit")]
     public async Task<ActionResult<DataResponse<PagedResponse<AdminAuditLogDto>>>> SearchAudit([FromQuery] string? entityType, [FromQuery] string? entityId, [FromQuery] string? actorUserId, [FromQuery] int page = 1, [FromQuery] int pageSize = 20, CancellationToken cancellationToken = default)
     {

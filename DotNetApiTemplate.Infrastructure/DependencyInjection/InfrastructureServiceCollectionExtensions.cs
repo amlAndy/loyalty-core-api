@@ -90,6 +90,8 @@ public static class InfrastructureServiceCollectionExtensions
                     policy.AddRequirements(new ActiveRoleRequirement(ApplicationRoleNames.AdminRoles));
                 });
 
+            ConfigureAdminPermissionPolicies(options);
+
             options.AddPolicy(
                 ActiveRolePolicies.Member,
                 policy =>
@@ -130,5 +132,23 @@ public static class InfrastructureServiceCollectionExtensions
         services.AddScoped<DevelopmentIdentitySeeder>();
 
         return services;
+    }
+
+    private static void ConfigureAdminPermissionPolicies(AuthorizationOptions options)
+    {
+        var permissionCatalog = new StaticPermissionCatalogProvider();
+
+        foreach (var permission in permissionCatalog.GetPermissions())
+        {
+            options.AddPolicy(
+                permission.Code,
+                policy =>
+                {
+                    policy.RequireAuthenticatedUser();
+                    policy.RequireRole(ApplicationRoleNames.AdminRoles);
+                    policy.AddRequirements(new ActiveRoleRequirement(ApplicationRoleNames.AdminRoles));
+                    policy.AddRequirements(new ActiveRolePermissionRequirement(permission.Code));
+                });
+        }
     }
 }
