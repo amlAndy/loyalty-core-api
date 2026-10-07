@@ -1,6 +1,7 @@
 using DotNetApiTemplate.Application.Features.Admin.Audit;
 using DotNetApiTemplate.Application.Features.Admin.Audit.Dtos;
 using DotNetApiTemplate.Application.Features.Admin.Audit.Interfaces;
+using DotNetApiTemplate.Application.Features.Admin.Authorization;
 using DotNetApiTemplate.Application.Features.Admin.Interfaces;
 using DotNetApiTemplate.Application.Features.Admin.Users.Dtos;
 using DotNetApiTemplate.Application.Features.Admin.Users.Interfaces;
@@ -16,17 +17,20 @@ public sealed class AdminUserService : IAdminUserService
 
     private readonly IAuditWriter _auditWriter;
     private readonly IAdminMutationScope _adminMutationScope;
+    private readonly IAdminPrivilegeEscalationGuard _adminPrivilegeEscalationGuard;
     private readonly IAdminUserRepository _adminUserRepository;
     private readonly IValidator<AdminUserUpsertModel> _adminUserUpsertModelValidator;
 
     public AdminUserService(
         IAuditWriter auditWriter,
         IAdminMutationScope adminMutationScope,
+        IAdminPrivilegeEscalationGuard adminPrivilegeEscalationGuard,
         IAdminUserRepository adminUserRepository,
         IValidator<AdminUserUpsertModel> adminUserUpsertModelValidator)
     {
         _auditWriter = auditWriter;
         _adminMutationScope = adminMutationScope;
+        _adminPrivilegeEscalationGuard = adminPrivilegeEscalationGuard;
         _adminUserRepository = adminUserRepository;
         _adminUserUpsertModelValidator = adminUserUpsertModelValidator;
     }
@@ -47,6 +51,7 @@ public sealed class AdminUserService : IAdminUserService
             }
 
             await EnsureRoleIdsExistAsync(normalizedModel.RoleIds, ct);
+            await _adminPrivilegeEscalationGuard.EnsureUserRoleAssignmentsWithinAuthorityAsync(Array.Empty<string>(), normalizedModel.RoleIds, ct);
 
             var createdUser = await _adminUserRepository.CreateAsync(normalizedModel, ct);
 
@@ -186,6 +191,7 @@ public sealed class AdminUserService : IAdminUserService
             }
 
             await EnsureRoleIdsExistAsync(normalizedModel.RoleIds, ct);
+            await _adminPrivilegeEscalationGuard.EnsureUserRoleAssignmentsWithinAuthorityAsync(before.RoleIds, normalizedModel.RoleIds, ct);
 
             var updatedUser = await _adminUserRepository.UpdateAsync(id, normalizedModel, ct);
 

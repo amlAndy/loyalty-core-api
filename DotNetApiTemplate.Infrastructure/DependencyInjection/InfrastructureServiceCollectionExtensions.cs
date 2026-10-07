@@ -114,6 +114,8 @@ public static class InfrastructureServiceCollectionExtensions
         services.AddScoped<IAuditRepository, AuditRepository>();
         services.AddScoped<IAuditWriter, AuditWriter>();
         services.AddScoped<IAdminMutationScope, AdminMutationScope>();
+        services.AddScoped<IAdminActorContext, AdminActorContext>();
+        services.AddScoped<IAdminPrivilegeEscalationGuard, AdminPrivilegeEscalationGuard>();
         services.AddScoped<IAdminRoleRepository, AdminRoleRepository>();
         services.AddScoped<IAdminUserRepository, AdminUserRepository>();
         services.AddScoped<LoveBrackleyService>();

@@ -1,5 +1,6 @@
 using DotNetApiTemplate.Application.Features.Admin.Audit.Dtos;
 using DotNetApiTemplate.Application.Features.Admin.Audit.Interfaces;
+using DotNetApiTemplate.Application.Features.Admin.Authorization;
 using DotNetApiTemplate.Application.Features.Admin.Interfaces;
 using DotNetApiTemplate.Application.Features.Admin.Roles.Dtos;
 using DotNetApiTemplate.Application.Features.Admin.Roles.Interfaces;
@@ -187,6 +188,7 @@ public sealed class AdminRoleServiceTests
         return new AdminRoleService(
             auditWriter ?? new FakeAuditWriter(),
             new ImmediateAdminMutationScope(),
+            new AllowAllAdminPrivilegeEscalationGuard(),
             repository,
             new AdminRoleHierarchyPolicyService(),
             permissionCatalogProvider ?? new FakePermissionCatalogProvider(),
@@ -294,6 +296,19 @@ public sealed class AdminRoleServiceTests
         public Task WriteAsync(AuditWriteEntryModel entry, CancellationToken cancellationToken = default)
         {
             Entries.Add(entry);
+            return Task.CompletedTask;
+        }
+    }
+
+    private sealed class AllowAllAdminPrivilegeEscalationGuard : IAdminPrivilegeEscalationGuard
+    {
+        public Task EnsureRoleMutationWithinAuthorityAsync(AdminRoleUpsertModel proposedModel, string? existingRoleId, IReadOnlyCollection<AdminRoleDefinitionModel> roles, CancellationToken cancellationToken = default)
+        {
+            return Task.CompletedTask;
+        }
+
+        public Task EnsureUserRoleAssignmentsWithinAuthorityAsync(string[] existingRoleIds, string[] requestedRoleIds, CancellationToken cancellationToken = default)
+        {
             return Task.CompletedTask;
         }
     }

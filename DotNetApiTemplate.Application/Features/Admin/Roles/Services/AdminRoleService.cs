@@ -1,6 +1,7 @@
 using DotNetApiTemplate.Application.Features.Admin.Audit;
 using DotNetApiTemplate.Application.Features.Admin.Audit.Dtos;
 using DotNetApiTemplate.Application.Features.Admin.Audit.Interfaces;
+using DotNetApiTemplate.Application.Features.Admin.Authorization;
 using DotNetApiTemplate.Application.Features.Admin.Interfaces;
 using DotNetApiTemplate.Application.Features.Admin.Roles.Dtos;
 using DotNetApiTemplate.Application.Features.Admin.Roles.Interfaces;
@@ -16,6 +17,7 @@ public sealed class AdminRoleService : IAdminRoleService
 
     private readonly IAuditWriter _auditWriter;
     private readonly IAdminMutationScope _adminMutationScope;
+    private readonly IAdminPrivilegeEscalationGuard _adminPrivilegeEscalationGuard;
     private readonly IAdminRoleRepository _adminRoleRepository;
     private readonly IAdminRoleHierarchyPolicyService _adminRoleHierarchyPolicyService;
     private readonly IPermissionCatalogProvider _permissionCatalogProvider;
@@ -25,6 +27,7 @@ public sealed class AdminRoleService : IAdminRoleService
     public AdminRoleService(
         IAuditWriter auditWriter,
         IAdminMutationScope adminMutationScope,
+        IAdminPrivilegeEscalationGuard adminPrivilegeEscalationGuard,
         IAdminRoleRepository adminRoleRepository,
         IAdminRoleHierarchyPolicyService adminRoleHierarchyPolicyService,
         IPermissionCatalogProvider permissionCatalogProvider,
@@ -33,6 +36,7 @@ public sealed class AdminRoleService : IAdminRoleService
     {
         _auditWriter = auditWriter;
         _adminMutationScope = adminMutationScope;
+        _adminPrivilegeEscalationGuard = adminPrivilegeEscalationGuard;
         _adminRoleRepository = adminRoleRepository;
         _adminRoleHierarchyPolicyService = adminRoleHierarchyPolicyService;
         _permissionCatalogProvider = permissionCatalogProvider;
@@ -99,6 +103,7 @@ public sealed class AdminRoleService : IAdminRoleService
 
             var roles = await _adminRoleRepository.GetAllAsync(ct);
             ValidateUpsert(normalizedModel, null, roles);
+            await _adminPrivilegeEscalationGuard.EnsureRoleMutationWithinAuthorityAsync(normalizedModel, null, roles, ct);
 
             var createdRole = await _adminRoleRepository.CreateAsync(normalizedModel, ct);
             var updatedRoles = await _adminRoleRepository.GetAllAsync(ct);
@@ -158,6 +163,7 @@ public sealed class AdminRoleService : IAdminRoleService
             }
 
             ValidateUpsert(normalizedModel, normalizedId, roles);
+            await _adminPrivilegeEscalationGuard.EnsureRoleMutationWithinAuthorityAsync(normalizedModel, normalizedId, roles, ct);
             var before = MapDetail(existingRole, roles);
 
             var updatedRole = await _adminRoleRepository.UpdateAsync(normalizedId, normalizedModel, ct);
