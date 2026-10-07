@@ -62,8 +62,8 @@ public interface IAdminLoveBrackleyService
     Task<LoyaltyTransactionDto?> AdjustPointsAsync(Guid memberId, AdjustPointsRequest request, string? actorUserId, CancellationToken cancellationToken);
     Task<PagedResponse<AdminReviewCaseDto>> SearchReviewsAsync(string? caseType, string? status, string? priority, int page, int pageSize, CancellationToken cancellationToken);
     Task<AdminReviewCaseDto?> GetReviewAsync(Guid caseId, CancellationToken cancellationToken);
-    Task<AdminReviewCaseDto?> ResolveReviewAsync(Guid caseId, ResolveReviewCaseRequest request, CancellationToken cancellationToken);
-    Task<AdminReviewCaseDto?> EscalateReviewAsync(Guid caseId, EscalateReviewCaseRequest request, CancellationToken cancellationToken);
+    Task<AdminReviewCaseDto?> ResolveReviewAsync(Guid caseId, ResolveReviewCaseRequest request, string? actorUserId, CancellationToken cancellationToken);
+    Task<AdminReviewCaseDto?> EscalateReviewAsync(Guid caseId, EscalateReviewCaseRequest request, string? actorUserId, CancellationToken cancellationToken);
     Task<PagedResponse<LoyaltyTransactionDto>> SearchTransactionsAsync(Guid? businessId, Guid? memberId, string? transactionType, string? status, int page, int pageSize, CancellationToken cancellationToken);
     Task<PagedResponse<BusinessStaffAccessRecordDto>> SearchAccessAsync(Guid? businessId, string? status, int page, int pageSize, CancellationToken cancellationToken);
     Task<PagedResponse<BusinessPayoutDto>> SearchPayoutsAsync(Guid? businessId, string? status, int page, int pageSize, CancellationToken cancellationToken);

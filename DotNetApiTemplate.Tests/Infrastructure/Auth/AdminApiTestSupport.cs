@@ -479,12 +479,12 @@ internal sealed class FakeAdminLoveBrackleyService : IAdminLoveBrackleyService
         return Task.FromResult<AdminReviewCaseDto?>(CreateReviewCase(caseId));
     }
 
-    public Task<AdminReviewCaseDto?> ResolveReviewAsync(Guid caseId, ResolveReviewCaseRequest request, CancellationToken cancellationToken)
+    public Task<AdminReviewCaseDto?> ResolveReviewAsync(Guid caseId, ResolveReviewCaseRequest request, string? actorUserId, CancellationToken cancellationToken)
     {
         return Task.FromResult<AdminReviewCaseDto?>(CreateReviewCase(caseId, status: "Resolved"));
     }
 
-    public Task<AdminReviewCaseDto?> EscalateReviewAsync(Guid caseId, EscalateReviewCaseRequest request, CancellationToken cancellationToken)
+    public Task<AdminReviewCaseDto?> EscalateReviewAsync(Guid caseId, EscalateReviewCaseRequest request, string? actorUserId, CancellationToken cancellationToken)
     {
         return Task.FromResult<AdminReviewCaseDto?>(CreateReviewCase(caseId, status: "Escalated"));
     }

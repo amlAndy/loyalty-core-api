@@ -13,6 +13,8 @@ public static class AuditActionTypes
     public const string RoleDeleted = "RoleDeleted";
     public const string RolePermissionAssigned = "RolePermissionAssigned";
     public const string RolePermissionUnassigned = "RolePermissionUnassigned";
+    public const string ReviewResolved = "ReviewResolved";
+    public const string ReviewEscalated = "ReviewEscalated";
 
     public static readonly string[] Values =
     [
@@ -26,6 +28,8 @@ public static class AuditActionTypes
         RoleUpdated,
         RoleDeleted,
         RolePermissionAssigned,
-        RolePermissionUnassigned
+        RolePermissionUnassigned,
+        ReviewResolved,
+        ReviewEscalated
     ];
 }

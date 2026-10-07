@@ -148,18 +148,42 @@ public sealed class LoveBrackleyAdminController : ControllerBase
 
     [Authorize(Policy = AdminPermissionPolicies.AdminConfigure)]
     [HttpPost("reviews/{caseId:guid}/resolve")]
+    [ProducesResponseType(typeof(DataResponse<AdminReviewCaseDto>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<ActionResult<DataResponse<AdminReviewCaseDto>>> ResolveReview(Guid caseId, [FromBody] ResolveReviewCaseRequest request, CancellationToken cancellationToken)
     {
-        var result = await _adminService.ResolveReviewAsync(caseId, request, cancellationToken);
-        return result is null ? NotFound() : Ok(new DataResponse<AdminReviewCaseDto>(result));
+        try
+        {
+            var result = await _adminService.ResolveReviewAsync(caseId, request, User.GetCurrentUserId(), cancellationToken);
+            return result is null ? NotFound() : Ok(new DataResponse<AdminReviewCaseDto>(result));
+        }
+        catch (ValidationException exception)
+        {
+            return LoveBrackleyControllerHelpers.CreateValidationProblem(exception);
+        }
     }
 
     [Authorize(Policy = AdminPermissionPolicies.AdminConfigure)]
     [HttpPost("reviews/{caseId:guid}/escalate")]
+    [ProducesResponseType(typeof(DataResponse<AdminReviewCaseDto>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<ActionResult<DataResponse<AdminReviewCaseDto>>> EscalateReview(Guid caseId, [FromBody] EscalateReviewCaseRequest request, CancellationToken cancellationToken)
     {
-        var result = await _adminService.EscalateReviewAsync(caseId, request, cancellationToken);
-        return result is null ? NotFound() : Ok(new DataResponse<AdminReviewCaseDto>(result));
+        try
+        {
+            var result = await _adminService.EscalateReviewAsync(caseId, request, User.GetCurrentUserId(), cancellationToken);
+            return result is null ? NotFound() : Ok(new DataResponse<AdminReviewCaseDto>(result));
+        }
+        catch (ValidationException exception)
+        {
+            return LoveBrackleyControllerHelpers.CreateValidationProblem(exception);
+        }
     }
 
     [Authorize(Policy = AdminPermissionPolicies.AdminView)]

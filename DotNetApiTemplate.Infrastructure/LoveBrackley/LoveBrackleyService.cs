@@ -1,5 +1,7 @@
 using System.Security.Cryptography;
 using System.Text;
+using System.Text.Json;
+using DotNetApiTemplate.Application.Features.Admin.Audit;
 using DotNetApiTemplate.Application.Features.Auth.Dtos;
 using DotNetApiTemplate.Application.Features.LoveBrackley.Dtos;
 using DotNetApiTemplate.Application.Features.LoveBrackley.Interfaces;
@@ -894,7 +896,7 @@ public sealed class LoveBrackleyService : IMemberLoyaltyService, ILoveBrackleyLo
         return reviewCase is null ? null : ToReviewDto(reviewCase);
     }
 
-    public async Task<AdminReviewCaseDto?> ResolveReviewAsync(Guid caseId, ResolveReviewCaseRequest request, CancellationToken cancellationToken)
+    public async Task<AdminReviewCaseDto?> ResolveReviewAsync(Guid caseId, ResolveReviewCaseRequest request, string? actorUserId, CancellationToken cancellationToken)
     {
         var reviewCase = await _dbContext.AdminReviewCases.SingleOrDefaultAsync(candidate => candidate.Id == caseId, cancellationToken);
         if (reviewCase is null)
@@ -902,14 +904,27 @@ public sealed class LoveBrackleyService : IMemberLoyaltyService, ILoveBrackleyLo
             return null;
         }
 
+        EnsureReviewTransitionAllowed(reviewCase.Status, "Resolved");
+
+        var before = CreateReviewAuditSnapshot(reviewCase);
+        var resolutionNotes = TrimToNull(request.ResolutionNotes);
         reviewCase.Status = "Resolved";
-        reviewCase.ResolutionNotes = TrimToNull(request.ResolutionNotes);
+        reviewCase.ResolutionNotes = resolutionNotes;
         reviewCase.ResolvedUtc = DateTimeOffset.UtcNow;
+        AddAdminAudit(
+            actorUserId,
+            ReviewAuditEntityType,
+            reviewCase.Id.ToString(),
+            AuditActionTypes.ReviewResolved,
+            $"Resolved review case {reviewCase.Title}.",
+            resolutionNotes,
+            SerializeReviewAuditSnapshot(before),
+            SerializeReviewAuditSnapshot(CreateReviewAuditSnapshot(reviewCase)));
         await _dbContext.SaveChangesAsync(cancellationToken);
         return ToReviewDto(reviewCase);
     }
 
-    public async Task<AdminReviewCaseDto?> EscalateReviewAsync(Guid caseId, EscalateReviewCaseRequest request, CancellationToken cancellationToken)
+    public async Task<AdminReviewCaseDto?> EscalateReviewAsync(Guid caseId, EscalateReviewCaseRequest request, string? actorUserId, CancellationToken cancellationToken)
     {
         var reviewCase = await _dbContext.AdminReviewCases.SingleOrDefaultAsync(candidate => candidate.Id == caseId, cancellationToken);
         if (reviewCase is null)
@@ -917,8 +932,21 @@ public sealed class LoveBrackleyService : IMemberLoyaltyService, ILoveBrackleyLo
             return null;
         }
 
+        EnsureReviewTransitionAllowed(reviewCase.Status, "Escalated");
+
+        var before = CreateReviewAuditSnapshot(reviewCase);
+        var reason = TrimToNull(request.Reason);
         reviewCase.Status = "Escalated";
-        reviewCase.ResolutionNotes = TrimToNull(request.Reason) ?? reviewCase.ResolutionNotes;
+        reviewCase.ResolutionNotes = reason ?? reviewCase.ResolutionNotes;
+        AddAdminAudit(
+            actorUserId,
+            ReviewAuditEntityType,
+            reviewCase.Id.ToString(),
+            AuditActionTypes.ReviewEscalated,
+            $"Escalated review case {reviewCase.Title}.",
+            reason,
+            SerializeReviewAuditSnapshot(before),
+            SerializeReviewAuditSnapshot(CreateReviewAuditSnapshot(reviewCase)));
         await _dbContext.SaveChangesAsync(cancellationToken);
         return ToReviewDto(reviewCase);
     }
@@ -1399,7 +1427,14 @@ public sealed class LoveBrackleyService : IMemberLoyaltyService, ILoveBrackleyLo
         return category ?? throw new ValidationException([new ValidationFailure("category", "A valid business category is required.")]);
     }
 
+    private const string ReviewAuditEntityType = AuditEntityTypes.Review;
+
     private void AddAdminAudit(string? actorUserId, string entityType, string entityId, string action, string summary, string? reason)
+    {
+        AddAdminAudit(actorUserId, entityType, entityId, action, summary, reason, null, null);
+    }
+
+    private void AddAdminAudit(string? actorUserId, string entityType, string entityId, string action, string summary, string? reason, string? beforeJson, string? afterJson)
     {
         _dbContext.AdminAuditLogs.Add(new AdminAuditLogEntity
         {
@@ -1409,10 +1444,55 @@ public sealed class LoveBrackleyService : IMemberLoyaltyService, ILoveBrackleyLo
             EntityId = entityId,
             Action = action,
             Summary = summary,
+            BeforeJson = beforeJson,
+            AfterJson = afterJson,
             Reason = reason,
             CreatedUtc = DateTimeOffset.UtcNow
         });
     }
+
+    private static void EnsureReviewTransitionAllowed(string currentStatus, string targetStatus)
+    {
+        var allowed = currentStatus switch
+        {
+            "Open" => targetStatus is "Resolved" or "Escalated",
+            "InReview" => targetStatus is "Resolved" or "Escalated",
+            "Escalated" => targetStatus == "Resolved",
+            "Resolved" => false,
+            _ => false
+        };
+
+        if (!allowed)
+        {
+            throw new ValidationException([new ValidationFailure("status", $"Review cannot transition from '{currentStatus}' to '{targetStatus}'.")]);
+        }
+    }
+
+    private static ReviewAuditSnapshot CreateReviewAuditSnapshot(AdminReviewCaseEntity reviewCase)
+    {
+        return new ReviewAuditSnapshot(
+            reviewCase.Id,
+            reviewCase.CaseType,
+            reviewCase.Status,
+            reviewCase.Priority,
+            reviewCase.ResolutionNotes,
+            reviewCase.ResolvedUtc,
+            reviewCase.AssignedToUserId);
+    }
+
+    private static string SerializeReviewAuditSnapshot(ReviewAuditSnapshot snapshot)
+    {
+        return JsonSerializer.Serialize(snapshot);
+    }
+
+    private sealed record ReviewAuditSnapshot(
+        Guid Id,
+        string CaseType,
+        string Status,
+        string Priority,
+        string? ResolutionNotes,
+        DateTimeOffset? ResolvedUtc,
+        string? AssignedToUserId);
 
     public static string HashPin(string pin)
     {

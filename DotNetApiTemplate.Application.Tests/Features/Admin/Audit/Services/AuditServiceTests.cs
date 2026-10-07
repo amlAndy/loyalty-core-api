@@ -64,7 +64,7 @@ public sealed class AuditServiceTests
         Assert.Equal(AuditActionTypes.Values.Length, result.Actions.Length);
         Assert.Contains(result.Actions, action => action.Value == AuditActionTypes.UserCreated && action.Label == "User Created");
         Assert.Equal(
-            [AuditEntityTypes.User, AuditEntityTypes.Role],
+            [AuditEntityTypes.User, AuditEntityTypes.Role, AuditEntityTypes.Review],
             result.EntityTypes.Select(entityType => entityType.Value).ToArray());
         Assert.Equal(
             ["Ariana Admin", "Sydney Super User"],
