@@ -71,7 +71,8 @@ public sealed class AuthService : IAuthService
         var result = await _userAuthRepository.AuthenticateAsync(
             command.Email,
             command.Password,
-            cancellationToken);
+            cancellationToken,
+            command.Screen);
 
         if (result is null)
         {

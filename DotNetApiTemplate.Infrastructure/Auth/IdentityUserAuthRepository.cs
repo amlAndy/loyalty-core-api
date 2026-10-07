@@ -34,7 +34,8 @@ public sealed class IdentityUserAuthRepository : IUserAuthRepository
     public async Task<LoginResult?> AuthenticateAsync(
         string email,
         string password,
-        CancellationToken cancellationToken = default)
+        CancellationToken cancellationToken = default,
+        string? screen = null)
     {
         var user = await _userManager.FindByEmailAsync(email);
 
@@ -43,7 +44,7 @@ public sealed class IdentityUserAuthRepository : IUserAuthRepository
             return null;
         }
 
-        var session = await CreateSessionForUserAsync(user, cancellationToken);
+        var session = await CreateSessionForUserAsync(user, screen, cancellationToken);
 
         return new LoginResult
         {
@@ -304,16 +305,17 @@ public sealed class IdentityUserAuthRepository : IUserAuthRepository
             return null;
         }
 
-        return await CreateSessionForUserAsync(user, cancellationToken);
+        return await CreateSessionForUserAsync(user, null, cancellationToken);
     }
 
     private async Task<AuthSessionResult> CreateSessionForUserAsync(
         ApplicationUser user,
+        string? loginScreen,
         CancellationToken cancellationToken)
     {
         var roleData = await GetRoleDataAsync(user.Id, cancellationToken);
         var refreshToken = _jwtTokenService.GenerateRefreshToken(user.Id);
-        var activeRoleId = ResolveActiveRoleId(roleData, requestedActiveRoleId: null);
+        var activeRoleId = ResolveActiveRoleId(roleData, requestedActiveRoleId: null, loginScreen);
         refreshToken.ActiveRoleId = activeRoleId;
         var (accessToken, accessTokenExpiresAt) = _jwtTokenService.GenerateAccessToken(
             user,
@@ -382,16 +384,38 @@ public sealed class IdentityUserAuthRepository : IUserAuthRepository
             .ToArrayAsync(cancellationToken);
     }
 
-    private static string? ResolveActiveRoleId(RoleData roleData, string? requestedActiveRoleId)
+    private static string? ResolveActiveRoleId(RoleData roleData, string? requestedActiveRoleId, string? loginScreen = null)
     {
         if (roleData.RoleIds.Length == 1)
         {
             return roleData.RoleIds[0];
         }
 
-        return roleData.ContainsRole(requestedActiveRoleId)
-            ? requestedActiveRoleId
-            : null;
+        if (roleData.ContainsRole(requestedActiveRoleId))
+        {
+            return requestedActiveRoleId;
+        }
+
+        var matchingRoleIds = string.IsNullOrWhiteSpace(loginScreen)
+            ? []
+            : roleData.RoleIds
+                .Where((roleId, index) => IsRoleAllowedForLoginScreen(roleData.RoleNames[index], loginScreen))
+                .ToArray();
+
+        return matchingRoleIds.Length == 1 ? matchingRoleIds[0] : null;
+    }
+
+    private static bool IsRoleAllowedForLoginScreen(string roleName, string loginScreen)
+    {
+        return loginScreen.ToLowerInvariant() switch
+        {
+            LoginScreenTypes.Member => string.Equals(roleName, ApplicationRoleNames.Member, StringComparison.OrdinalIgnoreCase),
+            LoginScreenTypes.Business => string.Equals(roleName, ApplicationRoleNames.BusinessOwner, StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(roleName, ApplicationRoleNames.BusinessStaff, StringComparison.OrdinalIgnoreCase),
+            LoginScreenTypes.Admin => string.Equals(roleName, ApplicationRoleNames.PlatformAdmin, StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(roleName, ApplicationRoleNames.TownAdmin, StringComparison.OrdinalIgnoreCase),
+            _ => false
+        };
     }
 
     private async Task<AuthenticatedUserModel> MapUserAsync(

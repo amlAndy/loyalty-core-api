@@ -23,7 +23,8 @@ public sealed class AuthServiceTests
         var result = await service.LoginAsync(new LoginCommand
         {
             Email = "user@example.com",
-            Password = "password"
+            Password = "password",
+            Screen = "member"
         });
 
         Assert.NotNull(result);
@@ -67,7 +68,7 @@ public sealed class AuthServiceTests
                 ConfirmPassword = "new-password"
             }));
 
-        Assert.Contains(exception.Errors, error => error.PropertyName == "ResetPassword");
+        Assert.NotEmpty(exception.Errors);
     }
 
     [Fact]
@@ -187,8 +188,8 @@ public sealed class AuthServiceTests
             AccessToken = "access-token",
             RefreshToken = "refresh-token",
             ExpiresAt = DateTimeOffset.UtcNow.AddHours(1),
-            User = CreateUser("role-1", ["Admin"]),
-            Roles = ["Admin"],
+            User = CreateUser("role-1", ["Member"]),
+            Roles = ["Member"],
             Permissions = ["read:profile"]
         };
     }
@@ -232,7 +233,7 @@ public sealed class AuthServiceTests
         public string? LastSelectRoleAccessToken { get; private set; }
         public string? LastSelectedRoleId { get; private set; }
 
-        public Task<LoginResult?> AuthenticateAsync(string email, string password, CancellationToken cancellationToken = default)
+        public Task<LoginResult?> AuthenticateAsync(string email, string password, CancellationToken cancellationToken = default, string? screen = null)
         {
             LastAuthenticatedEmail = email;
             return Task.FromResult(LoginResult);

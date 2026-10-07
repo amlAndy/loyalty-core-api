@@ -50,7 +50,8 @@ public sealed class IdentityUserAuthRepositoryTests
         var result = await repository.AuthenticateAsync(user.Email!, "Password1!", CancellationToken.None);
 
         Assert.NotNull(result);
-        Assert.Null(result!.User.BusinessId);
+        Assert.Equal(memberRoleId, result!.User.ActiveRoleId);
+        Assert.Null(result.User.BusinessId);
     }
 
     [Fact]
@@ -70,7 +71,8 @@ public sealed class IdentityUserAuthRepositoryTests
         var result = await repository.AuthenticateAsync(user.Email!, "Password1!", CancellationToken.None);
 
         Assert.NotNull(result);
-        Assert.Equal(businessId.ToString("D"), result!.User.BusinessId);
+        Assert.Equal(ownerRoleId, result!.User.ActiveRoleId);
+        Assert.Equal(businessId.ToString("D"), result.User.BusinessId);
     }
 
     [Fact]
@@ -106,7 +108,8 @@ public sealed class IdentityUserAuthRepositoryTests
         var result = await repository.AuthenticateAsync(staffUser.Email!, "Password1!", CancellationToken.None);
 
         Assert.NotNull(result);
-        Assert.Equal(businessId.ToString("D"), result!.User.BusinessId);
+        Assert.Equal(staffRoleId, result!.User.ActiveRoleId);
+        Assert.Equal(businessId.ToString("D"), result.User.BusinessId);
     }
 
     [Fact]
@@ -210,7 +213,78 @@ public sealed class IdentityUserAuthRepositoryTests
         var result = await repository.AuthenticateAsync(user.Email!, "Password1!", CancellationToken.None);
 
         Assert.NotNull(result);
-        Assert.Null(result!.User.BusinessId);
+        Assert.Equal(adminRoleId, result!.User.ActiveRoleId);
+        Assert.Null(result.User.BusinessId);
+    }
+
+    [Fact]
+    public async Task AuthenticateAsync_AdminScreen_WithUniqueTownAdminRole_SelectsTownAdminActiveRole()
+    {
+        await using var dbContext = CreateDbContext();
+        var userManager = CreateUserManager(dbContext);
+        var repository = new IdentityUserAuthRepository(dbContext, userManager, CreateJwtTokenService());
+
+        var memberRoleId = await CreateRoleAsync(dbContext, ApplicationRoleNames.Member);
+        var townAdminRoleId = await CreateRoleAsync(dbContext, ApplicationRoleNames.TownAdmin);
+        var user = await CreateUserAsync(userManager, "admin-town@example.com", "Town Admin Member");
+        await AssignRoleAsync(dbContext, user.Id, memberRoleId);
+        await AssignRoleAsync(dbContext, user.Id, townAdminRoleId);
+
+        var result = await repository.AuthenticateAsync(user.Email!, "Password1!", CancellationToken.None, "admin");
+        var currentUser = await repository.GetUserByAccessTokenAsync(result!.AccessToken, CancellationToken.None);
+
+        Assert.NotNull(result);
+        Assert.Equal(townAdminRoleId, result!.User.ActiveRoleId);
+        Assert.Equal(townAdminRoleId, currentUser!.ActiveRoleId);
+    }
+
+    [Fact]
+    public async Task AuthenticateAsync_BusinessScreen_WithUniqueBusinessOwnerRole_SelectsBusinessOwnerActiveRole()
+    {
+        await using var dbContext = CreateDbContext();
+        var userManager = CreateUserManager(dbContext);
+        var repository = new IdentityUserAuthRepository(dbContext, userManager, CreateJwtTokenService());
+
+        var memberRoleId = await CreateRoleAsync(dbContext, ApplicationRoleNames.Member);
+        var ownerRoleId = await CreateRoleAsync(dbContext, ApplicationRoleNames.BusinessOwner);
+        var user = await CreateUserAsync(userManager, "business-owner@example.com", "Business Owner Member");
+        await AssignRoleAsync(dbContext, user.Id, memberRoleId);
+        await AssignRoleAsync(dbContext, user.Id, ownerRoleId);
+
+        var businessId = Guid.Parse("22222222-2222-2222-2222-222222222206");
+        dbContext.BusinessProfiles.Add(CreateBusinessProfile(businessId, user.Id, "Business owner business"));
+        await dbContext.SaveChangesAsync();
+
+        var result = await repository.AuthenticateAsync(user.Email!, "Password1!", CancellationToken.None, "business");
+        var currentUser = await repository.GetUserByAccessTokenAsync(result!.AccessToken, CancellationToken.None);
+
+        Assert.NotNull(result);
+        Assert.Equal(ownerRoleId, result!.User.ActiveRoleId);
+        Assert.Equal(ownerRoleId, currentUser!.ActiveRoleId);
+        Assert.Equal(businessId.ToString("D"), currentUser.BusinessId);
+    }
+
+    [Fact]
+    public async Task AuthenticateAsync_AdminScreen_WithMultipleAdminRoles_LeavesActiveRoleNull()
+    {
+        await using var dbContext = CreateDbContext();
+        var userManager = CreateUserManager(dbContext);
+        var repository = new IdentityUserAuthRepository(dbContext, userManager, CreateJwtTokenService());
+
+        var memberRoleId = await CreateRoleAsync(dbContext, ApplicationRoleNames.Member);
+        var platformAdminRoleId = await CreateRoleAsync(dbContext, ApplicationRoleNames.PlatformAdmin);
+        var townAdminRoleId = await CreateRoleAsync(dbContext, ApplicationRoleNames.TownAdmin);
+        var user = await CreateUserAsync(userManager, "admin-ambiguous@example.com", "Ambiguous Admin");
+        await AssignRoleAsync(dbContext, user.Id, memberRoleId);
+        await AssignRoleAsync(dbContext, user.Id, platformAdminRoleId);
+        await AssignRoleAsync(dbContext, user.Id, townAdminRoleId);
+
+        var result = await repository.AuthenticateAsync(user.Email!, "Password1!", CancellationToken.None, "admin");
+        var currentUser = await repository.GetUserByAccessTokenAsync(result!.AccessToken, CancellationToken.None);
+
+        Assert.NotNull(result);
+        Assert.Null(result!.User.ActiveRoleId);
+        Assert.Null(currentUser!.ActiveRoleId);
     }
 
     [Fact]
@@ -228,10 +302,14 @@ public sealed class IdentityUserAuthRepositoryTests
         await dbContext.SaveChangesAsync();
 
         var login = await repository.AuthenticateAsync(user.Email!, "Password1!", CancellationToken.None);
-        var refreshed = await repository.RefreshAsync(login!.RefreshToken, CancellationToken.None);
+        var currentUser = await repository.GetUserByAccessTokenAsync(login!.AccessToken, CancellationToken.None);
+        var refreshed = await repository.RefreshAsync(login.RefreshToken, CancellationToken.None);
 
+        Assert.NotNull(currentUser);
+        Assert.Equal(ownerRoleId, currentUser!.ActiveRoleId);
         Assert.NotNull(refreshed);
-        Assert.Equal(businessId.ToString("D"), refreshed!.User.BusinessId);
+        Assert.Equal(ownerRoleId, refreshed!.User.ActiveRoleId);
+        Assert.Equal(businessId.ToString("D"), refreshed.User.BusinessId);
     }
 
     [Fact]
@@ -253,15 +331,18 @@ public sealed class IdentityUserAuthRepositoryTests
 
         var session = await repository.CreateSessionAsync(user.Email!, CancellationToken.None);
         Assert.NotNull(session);
-        Assert.Null(session!.User.BusinessId);
+        Assert.Null(session!.User.ActiveRoleId);
+        Assert.Null(session.User.BusinessId);
 
         var ownerSession = await repository.SelectRoleAsync(session.AccessToken, ownerRoleId, CancellationToken.None);
         Assert.NotNull(ownerSession);
-        Assert.Equal(businessId.ToString("D"), ownerSession!.User.BusinessId);
+        Assert.Equal(ownerRoleId, ownerSession!.User.ActiveRoleId);
+        Assert.Equal(businessId.ToString("D"), ownerSession.User.BusinessId);
 
         var memberSession = await repository.SelectRoleAsync(ownerSession.AccessToken, memberRoleId, CancellationToken.None);
         Assert.NotNull(memberSession);
-        Assert.Null(memberSession!.User.BusinessId);
+        Assert.Equal(memberRoleId, memberSession!.User.ActiveRoleId);
+        Assert.Null(memberSession.User.BusinessId);
     }
 
     [Fact]
@@ -281,8 +362,11 @@ public sealed class IdentityUserAuthRepositoryTests
         var session = await repository.AuthenticateAsync(user.Email!, "Password1!", CancellationToken.None);
         var currentUser = await repository.GetUserByAccessTokenAsync(session!.AccessToken, CancellationToken.None);
 
+        Assert.NotNull(session);
+        Assert.Equal(ownerRoleId, session!.User.ActiveRoleId);
         Assert.NotNull(currentUser);
-        Assert.Equal(businessId.ToString("D"), currentUser!.BusinessId);
+        Assert.Equal(ownerRoleId, currentUser!.ActiveRoleId);
+        Assert.Equal(businessId.ToString("D"), currentUser.BusinessId);
     }
 
     private static ApplicationDbContext CreateDbContext()
