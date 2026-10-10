@@ -165,7 +165,58 @@ public sealed class DevelopmentIdentitySeeder
         new("eleanor.price@love-brackley.local", "Eleanor Price", [ApplicationRoleNames.BusinessStaff]),
         new("marcus.reed@love-brackley.local", "Marcus Reed", [ApplicationRoleNames.BusinessStaff]),
         new("aisha.khan@love-brackley.local", "Aisha Khan", [ApplicationRoleNames.BusinessStaff]),
-        new("leo.martin@love-brackley.local", "Leo Martin", [ApplicationRoleNames.BusinessStaff])
+        new("leo.martin@love-brackley.local", "Leo Martin", [ApplicationRoleNames.BusinessStaff]),
+        // Sample business owners for pagination testing (Development-only)
+        new("sample.owner01@love-brackley.local", "Sample Owner 01", [ApplicationRoleNames.BusinessOwner]),
+        new("sample.owner02@love-brackley.local", "Sample Owner 02", [ApplicationRoleNames.BusinessOwner]),
+        new("sample.owner03@love-brackley.local", "Sample Owner 03", [ApplicationRoleNames.BusinessOwner]),
+        new("sample.owner04@love-brackley.local", "Sample Owner 04", [ApplicationRoleNames.BusinessOwner]),
+        new("sample.owner05@love-brackley.local", "Sample Owner 05", [ApplicationRoleNames.BusinessOwner]),
+        new("sample.owner06@love-brackley.local", "Sample Owner 06", [ApplicationRoleNames.BusinessOwner]),
+        new("sample.owner07@love-brackley.local", "Sample Owner 07", [ApplicationRoleNames.BusinessOwner]),
+        new("sample.owner08@love-brackley.local", "Sample Owner 08", [ApplicationRoleNames.BusinessOwner]),
+        new("sample.owner09@love-brackley.local", "Sample Owner 09", [ApplicationRoleNames.BusinessOwner]),
+        new("sample.owner10@love-brackley.local", "Sample Owner 10", [ApplicationRoleNames.BusinessOwner]),
+        new("sample.owner11@love-brackley.local", "Sample Owner 11", [ApplicationRoleNames.BusinessOwner]),
+        new("sample.owner12@love-brackley.local", "Sample Owner 12", [ApplicationRoleNames.BusinessOwner]),
+        new("sample.owner13@love-brackley.local", "Sample Owner 13", [ApplicationRoleNames.BusinessOwner]),
+        new("sample.owner14@love-brackley.local", "Sample Owner 14", [ApplicationRoleNames.BusinessOwner]),
+        new("sample.owner15@love-brackley.local", "Sample Owner 15", [ApplicationRoleNames.BusinessOwner]),
+        new("sample.owner16@love-brackley.local", "Sample Owner 16", [ApplicationRoleNames.BusinessOwner]),
+        new("sample.owner17@love-brackley.local", "Sample Owner 17", [ApplicationRoleNames.BusinessOwner]),
+        new("sample.owner18@love-brackley.local", "Sample Owner 18", [ApplicationRoleNames.BusinessOwner]),
+        new("sample.owner19@love-brackley.local", "Sample Owner 19", [ApplicationRoleNames.BusinessOwner]),
+        new("sample.owner20@love-brackley.local", "Sample Owner 20", [ApplicationRoleNames.BusinessOwner]),
+        new("sample.owner21@love-brackley.local", "Sample Owner 21", [ApplicationRoleNames.BusinessOwner]),
+        new("sample.owner22@love-brackley.local", "Sample Owner 22", [ApplicationRoleNames.BusinessOwner]),
+        new("sample.owner23@love-brackley.local", "Sample Owner 23", [ApplicationRoleNames.BusinessOwner]),
+        new("sample.owner24@love-brackley.local", "Sample Owner 24", [ApplicationRoleNames.BusinessOwner]),
+        new("sample.owner25@love-brackley.local", "Sample Owner 25", [ApplicationRoleNames.BusinessOwner]),
+        new("sample.owner26@love-brackley.local", "Sample Owner 26", [ApplicationRoleNames.BusinessOwner]),
+        new("sample.owner27@love-brackley.local", "Sample Owner 27", [ApplicationRoleNames.BusinessOwner]),
+        new("sample.owner28@love-brackley.local", "Sample Owner 28", [ApplicationRoleNames.BusinessOwner]),
+        new("sample.owner29@love-brackley.local", "Sample Owner 29", [ApplicationRoleNames.BusinessOwner]),
+        new("sample.owner30@love-brackley.local", "Sample Owner 30", [ApplicationRoleNames.BusinessOwner]),
+        new("sample.owner31@love-brackley.local", "Sample Owner 31", [ApplicationRoleNames.BusinessOwner]),
+        new("sample.owner32@love-brackley.local", "Sample Owner 32", [ApplicationRoleNames.BusinessOwner]),
+        new("sample.owner33@love-brackley.local", "Sample Owner 33", [ApplicationRoleNames.BusinessOwner]),
+        new("sample.owner34@love-brackley.local", "Sample Owner 34", [ApplicationRoleNames.BusinessOwner]),
+        new("sample.owner35@love-brackley.local", "Sample Owner 35", [ApplicationRoleNames.BusinessOwner]),
+        new("sample.owner36@love-brackley.local", "Sample Owner 36", [ApplicationRoleNames.BusinessOwner]),
+        new("sample.owner37@love-brackley.local", "Sample Owner 37", [ApplicationRoleNames.BusinessOwner]),
+        new("sample.owner38@love-brackley.local", "Sample Owner 38", [ApplicationRoleNames.BusinessOwner]),
+        new("sample.owner39@love-brackley.local", "Sample Owner 39", [ApplicationRoleNames.BusinessOwner]),
+        new("sample.owner40@love-brackley.local", "Sample Owner 40", [ApplicationRoleNames.BusinessOwner]),
+        new("sample.owner41@love-brackley.local", "Sample Owner 41", [ApplicationRoleNames.BusinessOwner]),
+        new("sample.owner42@love-brackley.local", "Sample Owner 42", [ApplicationRoleNames.BusinessOwner]),
+        new("sample.owner43@love-brackley.local", "Sample Owner 43", [ApplicationRoleNames.BusinessOwner]),
+        new("sample.owner44@love-brackley.local", "Sample Owner 44", [ApplicationRoleNames.BusinessOwner]),
+        new("sample.owner45@love-brackley.local", "Sample Owner 45", [ApplicationRoleNames.BusinessOwner]),
+        new("sample.owner46@love-brackley.local", "Sample Owner 46", [ApplicationRoleNames.BusinessOwner]),
+        new("sample.owner47@love-brackley.local", "Sample Owner 47", [ApplicationRoleNames.BusinessOwner]),
+        new("sample.owner48@love-brackley.local", "Sample Owner 48", [ApplicationRoleNames.BusinessOwner]),
+        new("sample.owner49@love-brackley.local", "Sample Owner 49", [ApplicationRoleNames.BusinessOwner]),
+        new("sample.owner50@love-brackley.local", "Sample Owner 50", [ApplicationRoleNames.BusinessOwner])
     ];
 
     private static readonly DevelopmentSeedAuditEntry[] SeedAuditEntries = [];
@@ -627,6 +678,8 @@ public sealed class DevelopmentIdentitySeeder
         if (await _dbContext.MemberProfiles.AnyAsync(cancellationToken))
         {
             await EnsureBusinessProfilesAsync(users, cancellationToken);
+            await EnsureSampleBusinessProfilesAsync(users, cancellationToken);
+            await EnsureSampleBusinessLocationsAsync(users, cancellationToken);
             await EnsureBusinessStaffAccessesAsync(users, cancellationToken);
             return;
         }
@@ -662,6 +715,23 @@ public sealed class DevelopmentIdentitySeeder
             Town = business.Town,
             Postcode = business.Postcode,
             TillReference = $"TILL-{index + 1:00}",
+            TradingHoursSummary = business.TradingHoursSummary,
+            Status = ActiveStatus,
+            CreatedUtc = created,
+            UpdatedUtc = created
+        }));
+
+        var sampleBusinesses = CreateSampleSeedBusinesses(users);
+        _dbContext.BusinessProfiles.AddRange(sampleBusinesses);
+        _dbContext.BusinessLocations.AddRange(sampleBusinesses.Select((business, index) => new BusinessLocationEntity
+        {
+            Id = Guid.Parse($"34444444-4444-4444-4444-44444444{index + 1:D4}"),
+            BusinessProfileId = business.Id,
+            LocationName = business.LocationName,
+            AddressLine1 = business.AddressLine1,
+            Town = business.Town,
+            Postcode = business.Postcode,
+            TillReference = $"SAMPLE-{index + 1:D3}",
             TradingHoursSummary = business.TradingHoursSummary,
             Status = ActiveStatus,
             CreatedUtc = created,
@@ -746,25 +816,74 @@ public sealed class DevelopmentIdentitySeeder
                 continue;
             }
 
-            existingBusiness.OwnerUserId = seededBusiness.OwnerUserId;
-            existingBusiness.Name = seededBusiness.Name;
-            existingBusiness.BrandReference = seededBusiness.BrandReference;
-            existingBusiness.Category = seededBusiness.Category;
-            existingBusiness.TownId = seededBusiness.TownId;
-            existingBusiness.BusinessCategoryId = seededBusiness.BusinessCategoryId;
-            existingBusiness.Description = seededBusiness.Description;
-            existingBusiness.LocationName = seededBusiness.LocationName;
-            existingBusiness.AddressLine1 = seededBusiness.AddressLine1;
-            existingBusiness.AddressLine2 = seededBusiness.AddressLine2;
-            existingBusiness.Town = seededBusiness.Town;
-            existingBusiness.Postcode = seededBusiness.Postcode;
-            existingBusiness.ContactEmail = seededBusiness.ContactEmail;
-            existingBusiness.SupportEmail = seededBusiness.SupportEmail;
-            existingBusiness.PrimaryContactName = seededBusiness.PrimaryContactName;
-            existingBusiness.TradingHoursSummary = seededBusiness.TradingHoursSummary;
-            existingBusiness.ParticipationStatus = seededBusiness.ParticipationStatus;
-            existingBusiness.Featured = seededBusiness.Featured;
-            existingBusiness.UpdatedUtc = seededBusiness.UpdatedUtc;
+            // Preserve existing business records on rerun; only add missing seeded businesses.
+        }
+
+        await _dbContext.SaveChangesAsync(cancellationToken);
+    }
+
+    private async Task EnsureSampleBusinessProfilesAsync(IReadOnlyDictionary<string, string> users, CancellationToken cancellationToken)
+    {
+        var sampleBusinesses = CreateSampleSeedBusinesses(users);
+        var sampleBusinessIds = sampleBusinesses.Select(candidate => candidate.Id).ToHashSet();
+        var existingSampleIds = await _dbContext.BusinessProfiles
+            .Where(candidate => sampleBusinessIds.Contains(candidate.Id))
+            .Select(candidate => candidate.Id)
+            .ToHashSetAsync(cancellationToken);
+
+        foreach (var sampleBusiness in sampleBusinesses)
+        {
+            if (existingSampleIds.Contains(sampleBusiness.Id))
+            {
+                continue;
+            }
+
+            _dbContext.BusinessProfiles.Add(sampleBusiness);
+            existingSampleIds.Add(sampleBusiness.Id);
+        }
+
+        await _dbContext.SaveChangesAsync(cancellationToken);
+    }
+
+    private async Task EnsureSampleBusinessLocationsAsync(IReadOnlyDictionary<string, string> users, CancellationToken cancellationToken)
+    {
+        var sampleBusinesses = CreateSampleSeedBusinesses(users);
+        var existingLocations = await _dbContext.BusinessLocations
+            .Select(location => new { location.Id, location.BusinessProfileId, location.TillReference })
+            .ToListAsync(cancellationToken);
+        var existingLocationIds = existingLocations.Select(location => location.Id).ToHashSet();
+        var existingBusinessAndTill = existingLocations
+            .Select(location => $"{location.BusinessProfileId:N}|{location.TillReference}")
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+        for (var index = 0; index < sampleBusinesses.Length; index++)
+        {
+            var sampleBusiness = sampleBusinesses[index];
+            var sampleTillReference = $"SAMPLE-{index + 1:D3}";
+            var locationId = Guid.Parse($"34444444-4444-4444-4444-44444444{index + 1:D4}");
+            var businessAndTillKey = $"{sampleBusiness.Id:N}|{sampleTillReference}";
+
+            if (existingLocationIds.Contains(locationId) || existingBusinessAndTill.Contains(businessAndTillKey))
+            {
+                continue;
+            }
+
+            _dbContext.BusinessLocations.Add(new BusinessLocationEntity
+            {
+                Id = locationId,
+                BusinessProfileId = sampleBusiness.Id,
+                LocationName = sampleBusiness.LocationName,
+                AddressLine1 = sampleBusiness.AddressLine1,
+                Town = sampleBusiness.Town,
+                Postcode = sampleBusiness.Postcode,
+                TillReference = sampleTillReference,
+                TradingHoursSummary = sampleBusiness.TradingHoursSummary,
+                Status = ActiveStatus,
+                CreatedUtc = sampleBusiness.CreatedUtc,
+                UpdatedUtc = sampleBusiness.UpdatedUtc
+            });
+            existingLocationIds.Add(locationId);
+            existingBusinessAndTill.Add(businessAndTillKey);
         }
 
         await _dbContext.SaveChangesAsync(cancellationToken);
@@ -834,6 +953,95 @@ public sealed class DevelopmentIdentitySeeder
             CreateBusiness("22222222-2222-2222-2222-222222222207", users["owner.riverside@love-brackley.local"], "Riverside Market Kitchen", "LB-BIZ-2007", "Food & Drink", FoodAndDrinkCategoryId, "Riverside breakfasts, lunches, and community suppers.", "Riverside", "1 Riverside Walk", "NN13 7GR", true),
             CreateBusiness("22222222-2222-2222-2222-222222222208", users["owner.greenpantry@love-brackley.local"], "Green Pantry", "LB-BIZ-2008", "Deli", GroceriesCategoryId, "Local pantry staples, fresh produce, and neighbourhood essentials.", "Green Pantry Corner", "15 Market Place", "NN13 7AJ", true)
         ];
+    }
+
+    private static BusinessProfileEntity[] CreateSampleSeedBusinesses(IReadOnlyDictionary<string, string> users)
+    {
+        var sampleOwnerEmails = Enumerable.Range(1, 50)
+            .Select(i => $"sample.owner{i:D2}@love-brackley.local")
+            .ToArray();
+
+        var businesses = new List<BusinessProfileEntity>();
+
+        var sampleBusinesses = new (string name, string category, Guid categoryId, string categoryName, string location, string address, string postcode, bool featured)[]
+        {
+            ("Sample: Artisan Bakery & Cafe with Fresh Daily Pastries and Specialty Breads Selection", "Food & Drink", FoodAndDrinkCategoryId, "Food & Drink", "Town Centre", "1 Market Place", "NN13 7AB", true),
+            ("Sample: Vintage Records and Vinyl Collectables", "Retail", RetailCategoryId, "Retail", "High Street", "5 High Street", "NN13 7DW", false),
+            ("Sample: Blossom Studio Flowers", "Florist", FloristCategoryId, "Florist", "Bridge Street", "12 Bridge Street", "NN13 7EP", true),
+            ("Sample: The Little Book Nook", "Books", BooksCategoryId, "Books", "Old Town", "3 Church Lane", "NN13 7FA", false),
+            ("Sample: Rustic Home Decor", "Home & Gift", HomeAndGiftCategoryId, "Home & Gift", "Manor Park", "8 Manor Drive", "NN13 7DS", true),
+            ("Sample: Artisan Bakery & Cafe with Fresh Daily Pastries", "Food & Drink", FoodAndDrinkCategoryId, "Food & Drink", "Riverside", "7 Riverside Walk", "NN13 7FN", false),
+            ("Sample: Gourmet Coffee Roasters", "Coffee Shop", CoffeeShopCategoryId, "Coffee Shop", "Station Road", "2 Station Road", "NN13 7GR", true),
+            ("Sample: Local Produce Market & Delicatessen Specialists with Premium Selections", "Groceries", GroceriesCategoryId, "Groceries", "Park Avenue", "6 Park Avenue", "NN13 7AJ", false),
+            ("Sample: Contemporary Art Gallery Space", "Retail", RetailCategoryId, "Retail", "Town Centre", "9 Market Place", "NN13 7AB", true),
+            ("Sample: The Cosy Bookshop and Tea Room", "Books", BooksCategoryId, "Books", "High Street", "14 High Street", "NN13 7DW", false),
+            ("Sample: Floral Design Studio", "Florist", FloristCategoryId, "Florist", "Bridge Street", "16 Bridge Street", "NN13 7EP", true),
+            ("Sample: Independent Coffee House", "Coffee Shop", CoffeeShopCategoryId, "Coffee Shop", "Old Town", "11 Church Lane", "NN13 7FA", false),
+            ("Sample: Premium Gift Boutique", "Home & Gift", HomeAndGiftCategoryId, "Home & Gift", "Manor Park", "10 Manor Drive", "NN13 7DS", true),
+            ("Sample: Neighbourhood Deli & Pantry", "Groceries", GroceriesCategoryId, "Groceries", "Riverside", "9 Riverside Walk", "NN13 7FN", false),
+            ("Sample: Family-Friendly Pizzeria and Italian Restaurant", "Food & Drink", FoodAndDrinkCategoryId, "Food & Drink", "Station Road", "4 Station Road", "NN13 7GR", true),
+            ("Sample: Bookshop Specialising in Local History", "Books", BooksCategoryId, "Books", "Park Avenue", "13 Park Avenue", "NN13 7AJ", false),
+            ("Sample: Sustainable Fashion Boutique", "Retail", RetailCategoryId, "Retail", "Town Centre", "20 Market Place", "NN13 7AB", true),
+            ("Sample: Flower Arrangements & Wedding Floristry", "Florist", FloristCategoryId, "Florist", "High Street", "19 High Street", "NN13 7DW", false),
+            ("Sample: Classic Italian Trattoria", "Food & Drink", FoodAndDrinkCategoryId, "Food & Drink", "Bridge Street", "25 Bridge Street", "NN13 7EP", true),
+            ("Sample: Health & Wellness Gift Shop", "Home & Gift", HomeAndGiftCategoryId, "Home & Gift", "Old Town", "8 Church Lane", "NN13 7FA", false),
+            ("Sample: Specialty Tea House", "Coffee Shop", CoffeeShopCategoryId, "Coffee Shop", "Manor Park", "15 Manor Drive", "NN13 7DS", true),
+            ("Sample: Organic Grocery Store", "Groceries", GroceriesCategoryId, "Groceries", "Riverside", "12 Riverside Walk", "NN13 7FN", false),
+            ("Sample: Retro Gaming Store with Collectables", "Retail", RetailCategoryId, "Retail", "Station Road", "7 Station Road", "NN13 7GR", true),
+            ("Sample: Tapas Bar & Spanish Restaurant", "Food & Drink", FoodAndDrinkCategoryId, "Food & Drink", "Park Avenue", "18 Park Avenue", "NN13 7AJ", false),
+            ("Sample: Children's Book Emporium with Reading Events", "Books", BooksCategoryId, "Books", "Town Centre", "11 Market Place", "NN13 7AB", true),
+            ("Sample: Seasonal Floral Design Workshop", "Florist", FloristCategoryId, "Florist", "High Street", "22 High Street", "NN13 7DW", false),
+            ("Sample: Artisan Coffee Roastery", "Coffee Shop", CoffeeShopCategoryId, "Coffee Shop", "Bridge Street", "6 Bridge Street", "NN13 7EP", true),
+            ("Sample: Vintage Homewares & Antiques", "Home & Gift", HomeAndGiftCategoryId, "Home & Gift", "Old Town", "13 Church Lane", "NN13 7FA", false),
+            ("Sample: Vegan & Vegetarian Cafe", "Food & Drink", FoodAndDrinkCategoryId, "Food & Drink", "Manor Park", "5 Manor Drive", "NN13 7DS", true),
+            ("Sample: Farmers Market Produce Stand", "Groceries", GroceriesCategoryId, "Groceries", "Riverside", "3 Riverside Walk", "NN13 7FN", false),
+            ("Sample: Independent Bookshop", "Books", BooksCategoryId, "Books", "Station Road", "10 Station Road", "NN13 7GR", false),
+            ("Sample: Designer Homeware Showroom", "Home & Gift", HomeAndGiftCategoryId, "Home & Gift", "Park Avenue", "2 Park Avenue", "NN13 7AJ", true),
+            ("Sample: Mediterranean Deli & Food Hall", "Groceries", GroceriesCategoryId, "Groceries", "Town Centre", "17 Market Place", "NN13 7AB", false),
+            ("Sample: Street Food & Fast Casual Kitchen", "Food & Drink", FoodAndDrinkCategoryId, "Food & Drink", "High Street", "26 High Street", "NN13 7DW", true),
+            ("Sample: Haberdashery & Craft Supplies", "Retail", RetailCategoryId, "Retail", "Bridge Street", "21 Bridge Street", "NN13 7EP", false),
+            ("Sample: Espresso Cocktail Bar", "Coffee Shop", CoffeeShopCategoryId, "Coffee Shop", "Old Town", "7 Church Lane", "NN13 7FA", true),
+            ("Sample: Gift Wrapping & Card Shop", "Home & Gift", HomeAndGiftCategoryId, "Home & Gift", "Manor Park", "20 Manor Drive", "NN13 7DS", false),
+            ("Sample: Indian Restaurant & Takeaway", "Food & Drink", FoodAndDrinkCategoryId, "Food & Drink", "Riverside", "14 Riverside Walk", "NN13 7FN", true),
+            ("Sample: Used & Rare Books Specialist", "Books", BooksCategoryId, "Books", "Station Road", "15 Station Road", "NN13 7GR", false),
+            ("Sample: Eco-Friendly Gift Emporium", "Home & Gift", HomeAndGiftCategoryId, "Home & Gift", "Park Avenue", "9 Park Avenue", "NN13 7AJ", true),
+            ("Sample: Local Artisan Produce Market", "Groceries", GroceriesCategoryId, "Groceries", "Town Centre", "8 Market Place", "NN13 7AB", false),
+            ("Sample: Thai Cuisine & Street Food", "Food & Drink", FoodAndDrinkCategoryId, "Food & Drink", "High Street", "31 High Street", "NN13 7DW", true),
+            ("Sample: Craft Beer Shop with Tastings", "Retail", RetailCategoryId, "Retail", "Bridge Street", "10 Bridge Street", "NN13 7EP", false),
+            ("Sample: Library Coffee Lounge", "Coffee Shop", CoffeeShopCategoryId, "Coffee Shop", "Old Town", "9 Church Lane", "NN13 7FA", true),
+            ("Sample: Artisan Soap & Bath Products", "Home & Gift", HomeAndGiftCategoryId, "Home & Gift", "Manor Park", "12 Manor Drive", "NN13 7DS", false),
+            ("Sample: Japanese Restaurant & Ramen Bar", "Food & Drink", FoodAndDrinkCategoryId, "Food & Drink", "Riverside", "11 Riverside Walk", "NN13 7FN", true),
+            ("Sample: Comic Books & Graphic Novels Specialist", "Books", BooksCategoryId, "Books", "Station Road", "19 Station Road", "NN13 7GR", false),
+            ("Sample: Sustainable Fashion & Homeware", "Retail", RetailCategoryId, "Retail", "Park Avenue", "4 Park Avenue", "NN13 7AJ", true),
+            ("Sample: Spice Market & Specialty Foods", "Groceries", GroceriesCategoryId, "Groceries", "Town Centre", "24 Market Place", "NN13 7AB", false),
+            ("Sample: Brunch Spot & Breakfast Kitchen", "Food & Drink", FoodAndDrinkCategoryId, "Food & Drink", "High Street", "7 High Street", "NN13 7DW", true)
+        };
+
+        for (int i = 0; i < sampleBusinesses.Length; i++)
+        {
+            var business = sampleBusinesses[i];
+            var ownerEmail = sampleOwnerEmails[i];
+            var ownerId = users[ownerEmail];
+            var sampleNum = i + 1;
+            var bizId = $"22222222-2222-2222-2222-{sampleNum:D12}";
+            var bizRef = $"LB-SMPL-{sampleNum:D2}";
+
+            businesses.Add(CreateBusiness(
+                bizId,
+                ownerId,
+                business.name,
+                bizRef,
+                business.categoryName,
+                business.categoryId,
+                business.name.Length > 80 ? "" : (business.name.EndsWith(".") || business.name.EndsWith("Selection") ? "Participating in Love Brackley loyalty programme." : ""),
+                business.location,
+                business.address,
+                business.postcode,
+                business.featured
+            ));
+        }
+
+        return businesses.ToArray();
     }
 
     private static BusinessStaffAccessEntity[] CreateSeedBusinessStaffAccesses(IReadOnlyDictionary<string, string> users, IReadOnlyList<BusinessProfileEntity> businesses)

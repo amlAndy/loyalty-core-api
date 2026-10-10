@@ -83,6 +83,53 @@ public sealed class DevelopmentIdentitySeederTests
         Assert.Equal(5, await dbContext.BusinessStaffAccesses.CountAsync());
     }
 
+    [Fact]
+    public async Task CreateSampleSeedBusinesses_DefinesExactly50WithUniqueOwnersAndBusinessIds()
+    {
+        await using var dbContext = CreateDbContext();
+        SeedLoveBrackleyUsers(dbContext);
+
+        var seeder = CreateSeeder(dbContext);
+        var users = await LoadUsersByEmailAsync(dbContext);
+
+        var sampleBusinesses = InvokeCreateSampleSeedBusinesses(seeder, users);
+
+        Assert.Equal(50, sampleBusinesses.Length);
+        Assert.Equal(50, sampleBusinesses.Select(candidate => candidate.Id).Distinct().Count());
+        Assert.Equal(50, sampleBusinesses.Select(candidate => candidate.OwnerUserId).Distinct(StringComparer.Ordinal).Count());
+        Assert.All(sampleBusinesses, candidate => Assert.NotEqual(Guid.Empty, candidate.Id));
+    }
+
+    [Fact]
+    public async Task EnsureSampleBusinessLocationsAsync_Adds50UniqueLocationsWithDeterministicGuids()
+    {
+        await using var dbContext = CreateDbContext();
+        SeedLoveBrackleyUsers(dbContext);
+
+        var seeder = CreateSeeder(dbContext);
+        var users = await LoadUsersByEmailAsync(dbContext);
+
+        await InvokeEnsureSampleBusinessProfilesAsync(seeder, users);
+        await InvokeEnsureSampleBusinessLocationsAsync(seeder, users);
+        await InvokeEnsureSampleBusinessLocationsAsync(seeder, users);
+
+        var sampleLocations = await dbContext.BusinessLocations
+            .Where(candidate => candidate.TillReference.StartsWith("SAMPLE-"))
+            .OrderBy(candidate => candidate.TillReference)
+            .ToListAsync();
+
+        Assert.Equal(50, sampleLocations.Count);
+        Assert.Equal(50, sampleLocations.Select(candidate => candidate.Id).Distinct().Count());
+        Assert.Equal(50, sampleLocations.Select(candidate => candidate.BusinessProfileId).Distinct().Count());
+
+        for (var index = 1; index <= 50; index++)
+        {
+            var expectedId = Guid.Parse($"34444444-4444-4444-4444-44444444{index:D4}");
+            var expectedTillReference = $"SAMPLE-{index:D3}";
+            Assert.Contains(sampleLocations, candidate => candidate.Id == expectedId && candidate.TillReference == expectedTillReference);
+        }
+    }
+
     private static ApplicationDbContext CreateDbContext()
     {
         var options = new DbContextOptionsBuilder<ApplicationDbContext>()
@@ -133,9 +180,42 @@ public sealed class DevelopmentIdentitySeederTests
         await task!;
     }
 
+    private static async Task InvokeEnsureSampleBusinessProfilesAsync(DevelopmentIdentitySeeder seeder, IReadOnlyDictionary<string, string> users)
+    {
+        var method = typeof(DevelopmentIdentitySeeder).GetMethod("EnsureSampleBusinessProfilesAsync", BindingFlags.Instance | BindingFlags.NonPublic);
+        Assert.NotNull(method);
+
+        var task = method!.Invoke(seeder, [users, CancellationToken.None]) as Task;
+        Assert.NotNull(task);
+
+        await task!;
+    }
+
+    private static async Task InvokeEnsureSampleBusinessLocationsAsync(DevelopmentIdentitySeeder seeder, IReadOnlyDictionary<string, string> users)
+    {
+        var method = typeof(DevelopmentIdentitySeeder).GetMethod("EnsureSampleBusinessLocationsAsync", BindingFlags.Instance | BindingFlags.NonPublic);
+        Assert.NotNull(method);
+
+        var task = method!.Invoke(seeder, [users, CancellationToken.None]) as Task;
+        Assert.NotNull(task);
+
+        await task!;
+    }
+
+    private static BusinessProfileEntity[] InvokeCreateSampleSeedBusinesses(DevelopmentIdentitySeeder seeder, IReadOnlyDictionary<string, string> users)
+    {
+        var method = typeof(DevelopmentIdentitySeeder).GetMethod("CreateSampleSeedBusinesses", BindingFlags.Static | BindingFlags.NonPublic);
+        Assert.NotNull(method);
+
+        var result = method!.Invoke(null, [users]) as BusinessProfileEntity[];
+        Assert.NotNull(result);
+
+        return result!;
+    }
+
     private static void SeedLoveBrackleyUsers(ApplicationDbContext dbContext)
     {
-        var emails = new[]
+        var baseEmails = new[]
         {
             "owner.marketkitchen@love-brackley.local",
             "owner.oldtownbooks@love-brackley.local",
@@ -151,6 +231,11 @@ public sealed class DevelopmentIdentitySeederTests
             "leo.martin@love-brackley.local",
             "member.seed@love-brackley.local",
         };
+
+        var sampleOwnerEmails = Enumerable.Range(1, 50)
+            .Select(i => $"sample.owner{i:D2}@love-brackley.local");
+
+        var emails = baseEmails.Concat(sampleOwnerEmails).ToArray();
 
         foreach (var email in emails)
         {
