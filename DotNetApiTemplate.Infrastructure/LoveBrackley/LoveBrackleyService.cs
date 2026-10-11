@@ -1556,34 +1556,47 @@ public sealed class LoveBrackleyService : IMemberLoyaltyService, ILoveBrackleyLo
             return null;
         }
 
-        // Check if member exists and get business in parallel
-        var memberTask = _dbContext.MemberProfiles
+        var member = await _dbContext.MemberProfiles
             .AsNoTracking()
             .FirstOrDefaultAsync(m => m.UserId == userId, cancellationToken);
 
-        var businessTask = _dbContext.BusinessProfiles
+        if (member is null)
+        {
+            return null;
+        }
+
+        var business = await _dbContext.BusinessProfiles
             .AsNoTracking()
             .Include(b => b.TownLookup)
             .Include(b => b.BusinessCategory)
             .FirstOrDefaultAsync(b => b.Id == businessId, cancellationToken);
 
-        await Task.WhenAll(memberTask, businessTask);
-
-        var member = await memberTask;
-        var business = await businessTask;
-
-        if (member is null || business is null)
+        if (business is null)
         {
             return null;
         }
 
-        // Check if already exists using AsNoTracking for efficiency
         var existing = await _dbContext.MemberShopPreferences
-            .AsNoTracking()
-            .FirstOrDefaultAsync(p => p.MemberProfileId == member.Id && p.BusinessProfileId == businessId && p.RemovedUtc == null, cancellationToken);
+            .Where(p => p.MemberProfileId == member.Id && p.BusinessProfileId == businessId)
+            .OrderBy(p => p.RemovedUtc.HasValue)
+            .ThenByDescending(p => p.SavedUtc)
+            .FirstOrDefaultAsync(cancellationToken);
 
         if (existing is not null)
         {
+            if (existing.RemovedUtc is null)
+            {
+                return ToFavoritedBusinessDto(existing, business);
+            }
+
+            existing.RemovedUtc = null;
+            existing.SavedUtc = DateTimeOffset.UtcNow;
+            if (!string.IsNullOrWhiteSpace(request.Notes))
+            {
+                existing.Notes = request.Notes.Trim();
+            }
+
+            await _dbContext.SaveChangesAsync(cancellationToken);
             return ToFavoritedBusinessDto(existing, business);
         }
 
@@ -1594,7 +1607,7 @@ public sealed class LoveBrackleyService : IMemberLoyaltyService, ILoveBrackleyLo
             BusinessProfileId = businessId,
             ReceiveOfferNotifications = true,
             ReceiveUpdateNotifications = true,
-            Notes = request.Notes ?? string.Empty,
+            Notes = string.IsNullOrWhiteSpace(request.Notes) ? string.Empty : request.Notes.Trim(),
             SavedUtc = DateTimeOffset.UtcNow,
             RemovedUtc = null
         };

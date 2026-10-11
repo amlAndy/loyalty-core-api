@@ -117,6 +117,44 @@ public sealed class MemberShopPreferencesTests
     }
 
     [Fact]
+    public async Task SaveFavoriteAsync_reactivates_soft_deleted_preference_without_creating_duplicate_active_row()
+    {
+        await using var dbContext = CreateDbContext();
+        SeedTestData(dbContext);
+        var service = new LoveBrackleyService(dbContext);
+        var businessId = Guid.Parse("11111111-1111-1111-1111-111111111111");
+
+        var initial = await service.SaveFavoriteAsync("member-user-1", businessId, new SaveMemberFavoriteRequest("Initial notes"), CancellationToken.None);
+        Assert.NotNull(initial);
+
+        var updated = await service.UpdateFavoritePreferencesAsync(
+            "member-user-1",
+            businessId,
+            new UpdateMemberFavoritePreferencesRequest(false, false, "Keep these preferences"),
+            CancellationToken.None);
+        Assert.NotNull(updated);
+
+        var removed = await service.RemoveFavoriteAsync("member-user-1", businessId, CancellationToken.None);
+        Assert.True(removed);
+
+        var reactivated = await service.SaveFavoriteAsync("member-user-1", businessId, new SaveMemberFavoriteRequest(null), CancellationToken.None);
+
+        Assert.NotNull(reactivated);
+        Assert.Equal(initial.PreferenceId, reactivated.PreferenceId);
+        Assert.False(reactivated.ReceiveOfferNotifications);
+        Assert.False(reactivated.ReceiveUpdateNotifications);
+        Assert.Equal("Keep these preferences", reactivated.Notes);
+
+        var preferences = await dbContext.MemberShopPreferences
+            .Where(p => p.MemberProfileId == Guid.Parse("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa") && p.BusinessProfileId == businessId)
+            .OrderBy(p => p.SavedUtc)
+            .ToListAsync();
+
+        Assert.Single(preferences);
+        Assert.Null(preferences[0].RemovedUtc);
+    }
+
+    [Fact]
     public async Task GetFavoritesAsync_returns_paginated_list_of_favorites()
     {
         await using var dbContext = CreateDbContext();
@@ -222,6 +260,10 @@ public sealed class MemberShopPreferencesTests
         var memberId = Guid.Parse("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa");
         var businessId1 = Guid.Parse("11111111-1111-1111-1111-111111111111");
         var businessId2 = Guid.Parse("22222222-2222-2222-2222-222222222222");
+        var townId = Guid.Parse("33333333-3333-3333-3333-333333333333");
+        var cafeCategoryId = Guid.Parse("44444444-4444-4444-4444-444444444444");
+        var foodCategoryId = Guid.Parse("55555555-5555-5555-5555-555555555555");
+        var now = DateTimeOffset.UtcNow;
 
         var member = new MemberProfileEntity
         {
@@ -233,8 +275,42 @@ public sealed class MemberShopPreferencesTests
             CardCode = "CARD001",
             Status = "Active",
             PointsBalance = 1000,
-            CreatedUtc = DateTimeOffset.UtcNow,
-            UpdatedUtc = DateTimeOffset.UtcNow
+            CreatedUtc = now,
+            UpdatedUtc = now
+        };
+
+        var town = new TownEntity
+        {
+            Id = townId,
+            Name = "Brackley",
+            Slug = "brackley",
+            DisplayName = "Brackley",
+            IsActive = true,
+            DisplayOrder = 1,
+            CreatedUtc = now,
+            UpdatedUtc = now
+        };
+
+        var cafeCategory = new BusinessCategoryEntity
+        {
+            Id = cafeCategoryId,
+            Name = "Cafe",
+            Slug = "cafe",
+            IsActive = true,
+            DisplayOrder = 1,
+            CreatedUtc = now,
+            UpdatedUtc = now
+        };
+
+        var foodCategory = new BusinessCategoryEntity
+        {
+            Id = foodCategoryId,
+            Name = "Food",
+            Slug = "food",
+            IsActive = true,
+            DisplayOrder = 2,
+            CreatedUtc = now,
+            UpdatedUtc = now
         };
 
         var business1 = new BusinessProfileEntity
@@ -244,6 +320,8 @@ public sealed class MemberShopPreferencesTests
             Name = "Coffee Shop",
             BrandReference = "CS001",
             Category = "Cafe",
+            TownId = townId,
+            BusinessCategoryId = cafeCategoryId,
             Description = "Great local cafe",
             LocationName = "Main Street",
             AddressLine1 = "123 Main St",
@@ -254,8 +332,8 @@ public sealed class MemberShopPreferencesTests
             TradingHoursSummary = "9am-6pm",
             ParticipationStatus = "Active",
             Featured = true,
-            CreatedUtc = DateTimeOffset.UtcNow,
-            UpdatedUtc = DateTimeOffset.UtcNow
+            CreatedUtc = now,
+            UpdatedUtc = now
         };
 
         var business2 = new BusinessProfileEntity
@@ -265,6 +343,8 @@ public sealed class MemberShopPreferencesTests
             Name = "Restaurant",
             BrandReference = "REST001",
             Category = "Food",
+            TownId = townId,
+            BusinessCategoryId = foodCategoryId,
             Description = "Fine dining restaurant",
             LocationName = "High Street",
             AddressLine1 = "456 High St",
@@ -275,12 +355,11 @@ public sealed class MemberShopPreferencesTests
             TradingHoursSummary = "12pm-10pm",
             ParticipationStatus = "Active",
             Featured = false,
-            CreatedUtc = DateTimeOffset.UtcNow,
-            UpdatedUtc = DateTimeOffset.UtcNow
+            CreatedUtc = now,
+            UpdatedUtc = now
         };
 
-        dbContext.MemberProfiles.Add(member);
-        dbContext.BusinessProfiles.AddRange(business1, business2);
+        dbContext.AddRange(member, town, cafeCategory, foodCategory, business1, business2);
         dbContext.SaveChanges();
     }
 }
