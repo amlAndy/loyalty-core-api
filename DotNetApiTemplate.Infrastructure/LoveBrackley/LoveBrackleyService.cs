@@ -151,7 +151,9 @@ public sealed class LoveBrackleyService : IMemberLoyaltyService, ILoveBrackleyLo
             ThrowValidation(nameof(request.DisplayName), "Display name is required.");
         }
 
-        member.DisplayName = request.DisplayName.Trim();
+        var normalizedDisplayName = request.DisplayName.Trim();
+
+        member.DisplayName = normalizedDisplayName;
         member.MobileNumber = TrimToNull(request.MobileNumber);
         member.HomeArea = TrimToNull(request.HomeArea);
         member.MarketingConsent = request.MarketingConsent;
@@ -159,6 +161,16 @@ public sealed class LoveBrackleyService : IMemberLoyaltyService, ILoveBrackleyLo
         member.LocalOffersPreference = request.LocalOffersPreference;
         member.CardReminderPreference = request.CardReminderPreference;
         member.UpdatedUtc = DateTimeOffset.UtcNow;
+
+        if (!string.IsNullOrWhiteSpace(member.UserId))
+        {
+            var user = await _dbContext.Users.SingleOrDefaultAsync(candidate => candidate.Id == member.UserId, cancellationToken);
+            if (user is not null)
+            {
+                user.DisplayName = normalizedDisplayName;
+            }
+        }
+
         await _dbContext.SaveChangesAsync(cancellationToken);
 
         return ToMemberSettings(member);

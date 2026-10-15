@@ -55,6 +55,47 @@ public sealed class IdentityUserAuthRepositoryTests
     }
 
     [Fact]
+    public async Task AuthenticateAsync_MemberSession_UsesMemberProfileDisplayNameAcrossSessionMeAndRefresh()
+    {
+        await using var dbContext = CreateDbContext();
+        var userManager = CreateUserManager(dbContext);
+        var repository = new IdentityUserAuthRepository(dbContext, userManager, CreateJwtTokenService());
+        var memberRoleId = await CreateRoleAsync(dbContext, ApplicationRoleNames.Member);
+        var user = await CreateUserAsync(userManager, "member-display-sync@example.com", "Alice Member");
+        await AssignRoleAsync(dbContext, user.Id, memberRoleId);
+
+        dbContext.MemberProfiles.Add(new MemberProfileEntity
+        {
+            Id = Guid.Parse("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaa2"),
+            UserId = user.Id,
+            DisplayName = "Sue Member",
+            Email = user.Email,
+            MobileNumber = "07700111222",
+            HomeArea = "Brackley",
+            PublicMemberReference = "MEM-SYNC",
+            CardCode = "CARD-SYNC",
+            Status = "Active",
+            PointsBalance = 200,
+            MarketingConsent = true,
+            EmailUpdatesPreference = true,
+            LocalOffersPreference = true,
+            CardReminderPreference = true,
+            CreatedUtc = DateTimeOffset.UtcNow.AddDays(-10),
+            UpdatedUtc = DateTimeOffset.UtcNow.AddDays(-1),
+        });
+        await dbContext.SaveChangesAsync();
+
+        var session = await repository.AuthenticateAsync(user.Email!, "Password1!", CancellationToken.None);
+        var currentUser = await repository.GetUserByAccessTokenAsync(session!.AccessToken, CancellationToken.None);
+        var refreshed = await repository.RefreshAsync(session.RefreshToken, CancellationToken.None);
+
+        Assert.NotNull(session);
+        Assert.Equal("Sue Member", session!.User.DisplayName);
+        Assert.Equal("Sue Member", currentUser!.DisplayName);
+        Assert.Equal("Sue Member", refreshed!.User.DisplayName);
+    }
+
+    [Fact]
     public async Task AuthenticateAsync_BusinessOwnerSession_UsesOwnedBusinessProfileId()
     {
         await using var dbContext = CreateDbContext();

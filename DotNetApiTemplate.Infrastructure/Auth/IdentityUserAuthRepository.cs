@@ -424,12 +424,13 @@ public sealed class IdentityUserAuthRepository : IUserAuthRepository
         string? activeRoleId,
         CancellationToken cancellationToken)
     {
+        var displayName = await ResolveDisplayNameAsync(user, roleData, activeRoleId, cancellationToken);
         var businessId = await ResolveBusinessIdAsync(user.Id, roleData, activeRoleId, cancellationToken);
 
         return new AuthenticatedUserModel
         {
             Id = user.Id,
-            DisplayName = user.DisplayName,
+            DisplayName = displayName,
             Email = user.Email ?? string.Empty,
             Status = string.IsNullOrWhiteSpace(user.Status) ? ActiveStatus : user.Status,
             RoleIds = roleData.RoleIds,
@@ -437,6 +438,34 @@ public sealed class IdentityUserAuthRepository : IUserAuthRepository
             ActiveRoleId = activeRoleId,
             BusinessId = businessId
         };
+    }
+
+    private async Task<string> ResolveDisplayNameAsync(
+        ApplicationUser user,
+        RoleData roleData,
+        string? activeRoleId,
+        CancellationToken cancellationToken)
+    {
+        if (string.IsNullOrWhiteSpace(activeRoleId))
+        {
+            return user.DisplayName;
+        }
+
+        var activeRoleName = roleData.ResolveRoleName(activeRoleId);
+        if (!string.Equals(activeRoleName, ApplicationRoleNames.Member, StringComparison.OrdinalIgnoreCase))
+        {
+            return user.DisplayName;
+        }
+
+        var memberDisplayName = await _dbContext.MemberProfiles
+            .AsNoTracking()
+            .Where(candidate => candidate.UserId == user.Id)
+            .Select(candidate => candidate.DisplayName)
+            .SingleOrDefaultAsync(cancellationToken);
+
+        return string.IsNullOrWhiteSpace(memberDisplayName)
+            ? user.DisplayName
+            : memberDisplayName.Trim();
     }
 
     private async Task<string?> ResolveBusinessIdAsync(
