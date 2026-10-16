@@ -72,6 +72,7 @@ app.UseAuthorization();
 if (app.Environment.IsDevelopment())
 {
     app.MapDevelopmentSsoEndpoints();
+    app.MapDevelopmentDataSeedEndpoints();
 }
 
 app.MapControllers();

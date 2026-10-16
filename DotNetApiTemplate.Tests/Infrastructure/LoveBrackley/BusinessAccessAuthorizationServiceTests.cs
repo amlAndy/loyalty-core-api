@@ -104,6 +104,23 @@ public sealed class BusinessAccessAuthorizationServiceTests
     }
 
     [Fact]
+    public async Task AuthorizeAsync_BusinessOwner_OtherBusinessDashboard_IsForbidden()
+    {
+        await using var dbContext = CreateDbContext();
+        var seed = await SeedAuthorizationScenarioAsync(dbContext);
+        var service = new BusinessAccessAuthorizationService(dbContext);
+
+        var result = await service.AuthorizeAsync(
+            seed.OwnerUserId,
+            seed.BusinessOwnerRoleId,
+            seed.OtherBusinessId,
+            BusinessAccessOperation.Dashboard,
+            CancellationToken.None);
+
+        Assert.Equal(BusinessAccessDecision.Forbidden, result.Decision);
+    }
+
+    [Fact]
     public async Task AuthorizeAsync_BusinessStaff_AmbiguousStaffRows_IsForbidden()
     {
         await using var dbContext = CreateDbContext();

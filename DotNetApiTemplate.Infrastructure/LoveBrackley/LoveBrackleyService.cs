@@ -22,6 +22,8 @@ public sealed class LoveBrackleyService : IMemberLoyaltyService, ILoveBrackleyLo
     private const string RedeemType = "Redeem";
     private const string ManualAdjustmentType = "ManualAdjustment";
 
+    private static readonly TimeZoneInfo LondonTimeZone = ResolveLondonTimeZone();
+
     private readonly ApplicationDbContext _dbContext;
 
     public LoveBrackleyService(ApplicationDbContext dbContext)
@@ -260,20 +262,37 @@ public sealed class LoveBrackleyService : IMemberLoyaltyService, ILoveBrackleyLo
             return null;
         }
 
-        var monthStart = new DateTimeOffset(2026, 4, 1, 0, 0, 0, TimeSpan.Zero);
-        var transactions = _dbContext.LoyaltyTransactions.AsNoTracking().Where(transaction => transaction.BusinessProfileId == businessId);
-        var pointsIssued = await transactions.Where(transaction => transaction.TransactionType == EarnType && transaction.Status == CompletedStatus).SumAsync(transaction => transaction.Points, cancellationToken);
-        var pointsRedeemed = await transactions.Where(transaction => transaction.TransactionType == RedeemType && transaction.Status == CompletedStatus).SumAsync(transaction => transaction.Points, cancellationToken);
-        var monthlyTransactions = await transactions.CountAsync(transaction => transaction.CreatedUtc >= monthStart, cancellationToken);
+        var (todayStartUtc, tomorrowStartUtc) = GetLondonDayRangeUtc(DateTimeOffset.UtcNow);
+        var completedTodayTransactions = _dbContext.LoyaltyTransactions
+            .AsNoTracking()
+            .Where(transaction =>
+                transaction.BusinessProfileId == businessId
+                && transaction.Status == CompletedStatus
+                && transaction.CreatedUtc >= todayStartUtc
+                && transaction.CreatedUtc < tomorrowStartUtc);
+
+        var pointsIssuedToday = await completedTodayTransactions
+            .Where(transaction => transaction.TransactionType == EarnType)
+            .SumAsync(transaction => transaction.Points, cancellationToken);
+        var pointsRedeemedToday = await completedTodayTransactions
+            .Where(transaction => transaction.TransactionType == RedeemType)
+            .SumAsync(transaction => transaction.Points, cancellationToken);
+        var transactionsToday = await completedTodayTransactions.CountAsync(cancellationToken);
+
         var alerts = await _dbContext.BusinessAlerts.AsNoTracking()
             .Where(alert => alert.BusinessProfileId == businessId && alert.Status == "Open")
             .OrderByDescending(alert => alert.CreatedUtc)
             .Select(alert => new BusinessAlertDto(alert.Id, alert.Title, alert.Message, alert.Tone, alert.Status, alert.CreatedUtc))
             .ToListAsync(cancellationToken);
+
         var recentTransactions = await TransactionQuery()
-            .Where(transaction => transaction.BusinessProfileId == businessId)
+            .Where(transaction =>
+                transaction.BusinessProfileId == businessId
+                && transaction.Status == CompletedStatus
+                && transaction.CreatedUtc >= todayStartUtc
+                && transaction.CreatedUtc < tomorrowStartUtc)
             .OrderByDescending(transaction => transaction.CreatedUtc)
-            .Take(8)
+            .Take(20)
             .Select(transaction => new BusinessRecentTransactionDto(
                 transaction.Id,
                 transaction.MemberProfile!.DisplayName,
@@ -289,13 +308,39 @@ public sealed class LoveBrackleyService : IMemberLoyaltyService, ILoveBrackleyLo
             businessId,
             business.Name,
             [
-                new BusinessDashboardMetricDto("Points issued", pointsIssued.ToString(), "Info"),
-                new BusinessDashboardMetricDto("Points redeemed", pointsRedeemed.ToString(), "Info"),
-                new BusinessDashboardMetricDto("April transactions", monthlyTransactions.ToString(), "Info")
+                new BusinessDashboardMetricDto("Points issued today", pointsIssuedToday.ToString(), "Info"),
+                new BusinessDashboardMetricDto("Points redeemed today", pointsRedeemedToday.ToString(), "Info"),
+                new BusinessDashboardMetricDto("Transactions today", transactionsToday.ToString(), "Info")
             ],
             alerts,
             recentTransactions,
             ["Look up member", "Issue points", "Redeem points", "Review transactions"]);
+    }
+
+    private static (DateTimeOffset StartUtc, DateTimeOffset EndUtc) GetLondonDayRangeUtc(DateTimeOffset utcNow)
+    {
+        var londonNow = TimeZoneInfo.ConvertTime(utcNow, LondonTimeZone);
+        var londonDate = londonNow.Date;
+
+        var londonStart = new DateTime(londonDate.Year, londonDate.Month, londonDate.Day, 0, 0, 0, DateTimeKind.Unspecified);
+        var londonEnd = londonStart.AddDays(1);
+
+        var startUtc = TimeZoneInfo.ConvertTimeToUtc(londonStart, LondonTimeZone);
+        var endUtc = TimeZoneInfo.ConvertTimeToUtc(londonEnd, LondonTimeZone);
+
+        return (new DateTimeOffset(startUtc), new DateTimeOffset(endUtc));
+    }
+
+    private static TimeZoneInfo ResolveLondonTimeZone()
+    {
+        try
+        {
+            return TimeZoneInfo.FindSystemTimeZoneById("Europe/London");
+        }
+        catch (TimeZoneNotFoundException)
+        {
+            return TimeZoneInfo.FindSystemTimeZoneById("GMT Standard Time");
+        }
     }
 
     public async Task<BusinessMemberSearchResponse?> SearchMembersAsync(Guid businessId, string? searchTerm, string? activityStatus, int page, int pageSize, CancellationToken cancellationToken)
