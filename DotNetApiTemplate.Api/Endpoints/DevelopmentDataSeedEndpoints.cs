@@ -72,28 +72,69 @@ public static class DevelopmentDataSeedEndpoints
             return Results.BadRequest(new ProblemDetails { Detail = "Green Pantry owner role assignment was not found." });
         }
 
-        var memberIds = await dbContext.MemberProfiles
+        var seededMemberEmails = new[]
+        {
+            "sophie.taylor@love-brackley.local",
+            "olivia.carter@love-brackley.local",
+            "daniel.hughes@love-brackley.local",
+            "ava.thompson@love-brackley.local"
+        };
+
+        var seededMembers = await dbContext.MemberProfiles
             .AsNoTracking()
-            .OrderBy(candidate => candidate.CreatedUtc)
-            .Take(3)
-            .Select(candidate => candidate.Id)
+            .Join(
+                dbContext.Users.AsNoTracking(),
+                member => member.UserId,
+                user => user.Id,
+                (member, user) => new
+                {
+                    member.Id,
+                    member.PublicMemberReference,
+                    member.PointsBalance,
+                    UserEmail = user.Email
+                })
+            .Where(candidate => candidate.UserEmail != null && seededMemberEmails.Contains(candidate.UserEmail))
             .ToListAsync(cancellationToken);
 
-        if (memberIds.Count < 3)
+        if (seededMembers.Count != seededMemberEmails.Length)
         {
-            return Results.BadRequest(new ProblemDetails { Detail = "Not enough seeded members were found to create dashboard transactions." });
+            var matchedEmails = seededMembers
+                .Where(candidate => !string.IsNullOrWhiteSpace(candidate.UserEmail))
+                .Select(candidate => candidate.UserEmail!)
+                .ToHashSet(StringComparer.OrdinalIgnoreCase);
+            var missingEmails = seededMemberEmails
+                .Where(email => !matchedEmails.Contains(email))
+                .ToArray();
+            return Results.BadRequest(new ProblemDetails
+            {
+                Detail = $"Expected seeded member emails were not found: {string.Join(", ", missingEmails)}"
+            });
         }
+
+        var seededMemberIdsByEmail = seededMembers
+            .Where(candidate => !string.IsNullOrWhiteSpace(candidate.UserEmail))
+            .ToDictionary(
+                candidate => candidate.UserEmail!,
+                candidate => candidate.Id,
+                StringComparer.OrdinalIgnoreCase);
 
         var londonNow = TimeZoneInfo.ConvertTime(DateTimeOffset.UtcNow, LondonTimeZone);
         var londonToday = londonNow.Date;
+        var batchDateToken = londonToday.ToString("yyyyMMdd");
+        var batchId = $"DEV-SEED-GP-DASH-{batchDateToken}";
 
         var operations = new[]
         {
-            new SeedOperation("DEV-SEED-GREEN-PANTRY-TODAY-EARN-1", "Earn", memberIds[0], PurchaseAmount: 48.75m, Points: null, LondonDate: londonToday, LondonHour: 10, LondonMinute: 15),
-            new SeedOperation("DEV-SEED-GREEN-PANTRY-TODAY-REDEEM-1", "Redeem", memberIds[0], PurchaseAmount: 32.40m, Points: 30, LondonDate: londonToday, LondonHour: 13, LondonMinute: 40),
-            new SeedOperation("DEV-SEED-GREEN-PANTRY-TODAY-EARN-2", "Earn", memberIds[1], PurchaseAmount: 21.30m, Points: null, LondonDate: londonToday, LondonHour: 16, LondonMinute: 20),
-            new SeedOperation("DEV-SEED-GREEN-PANTRY-OLDER-EARN-1", "Earn", memberIds[2], PurchaseAmount: 15.00m, Points: null, LondonDate: londonToday.AddDays(-3), LondonHour: 11, LondonMinute: 5),
-            new SeedOperation("DEV-SEED-GREEN-PANTRY-OLDER-REDEEM-1", "Redeem", memberIds[1], PurchaseAmount: 27.50m, Points: 10, LondonDate: londonToday.AddDays(-2), LondonHour: 15, LondonMinute: 10),
+            new SeedOperation($"{batchId}-EARN-01", "Earn", seededMemberIdsByEmail["sophie.taylor@love-brackley.local"], PurchaseAmount: 48.75m, Points: null, LondonDate: londonToday, LondonHour: 9, LondonMinute: 12),
+            new SeedOperation($"{batchId}-REDEEM-02", "Redeem", seededMemberIdsByEmail["sophie.taylor@love-brackley.local"], PurchaseAmount: 33.50m, Points: 30, LondonDate: londonToday, LondonHour: 10, LondonMinute: 28),
+            new SeedOperation($"{batchId}-EARN-03", "Earn", seededMemberIdsByEmail["olivia.carter@love-brackley.local"], PurchaseAmount: 22.10m, Points: null, LondonDate: londonToday, LondonHour: 11, LondonMinute: 6),
+            new SeedOperation($"{batchId}-EARN-04", "Earn", seededMemberIdsByEmail["daniel.hughes@love-brackley.local"], PurchaseAmount: 17.90m, Points: null, LondonDate: londonToday, LondonHour: 11, LondonMinute: 54),
+            new SeedOperation($"{batchId}-REDEEM-05", "Redeem", seededMemberIdsByEmail["olivia.carter@love-brackley.local"], PurchaseAmount: 41.80m, Points: 20, LondonDate: londonToday, LondonHour: 12, LondonMinute: 40),
+            new SeedOperation($"{batchId}-EARN-06", "Earn", seededMemberIdsByEmail["ava.thompson@love-brackley.local"], PurchaseAmount: 64.30m, Points: null, LondonDate: londonToday, LondonHour: 13, LondonMinute: 22),
+            new SeedOperation($"{batchId}-EARN-07", "Earn", seededMemberIdsByEmail["sophie.taylor@love-brackley.local"], PurchaseAmount: 12.45m, Points: null, LondonDate: londonToday, LondonHour: 14, LondonMinute: 17),
+            new SeedOperation($"{batchId}-REDEEM-08", "Redeem", seededMemberIdsByEmail["daniel.hughes@love-brackley.local"], PurchaseAmount: 29.50m, Points: 10, LondonDate: londonToday, LondonHour: 15, LondonMinute: 8),
+            new SeedOperation($"{batchId}-EARN-09", "Earn", seededMemberIdsByEmail["olivia.carter@love-brackley.local"], PurchaseAmount: 53.20m, Points: null, LondonDate: londonToday, LondonHour: 16, LondonMinute: 11),
+            new SeedOperation($"{batchId}-REDEEM-10", "Redeem", seededMemberIdsByEmail["ava.thompson@love-brackley.local"], PurchaseAmount: 38.60m, Points: 40, LondonDate: londonToday, LondonHour: 17, LondonMinute: 3),
         };
 
         var created = new List<object>();
@@ -112,6 +153,7 @@ public static class DevelopmentDataSeedEndpoints
                 skipped.Add(new
                 {
                     operation.Note,
+                    operation.MemberId,
                     existing.Id,
                     existing.Reference,
                     existing.CreatedUtc
@@ -145,6 +187,7 @@ public static class DevelopmentDataSeedEndpoints
             created.Add(new
             {
                 operation.Note,
+                operation.MemberId,
                 transaction.Id,
                 transaction.Reference,
                 transaction.TransactionType,
@@ -178,9 +221,11 @@ public static class DevelopmentDataSeedEndpoints
 
         return Results.Ok(new
         {
+            batchId,
             businessId = business.Id,
             businessName = business.Name,
             londonDate = londonToday.ToString("yyyy-MM-dd"),
+            seededMemberEmails,
             windowStartUtc = todayStartUtc,
             windowEndUtc = tomorrowStartUtc,
             created,
