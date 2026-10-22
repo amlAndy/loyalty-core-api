@@ -4,6 +4,8 @@ using DotNetApiTemplate.Application.DependencyInjection;
 using DotNetApiTemplate.Application.Features.Auth.Interfaces;
 using DotNetApiTemplate.Infrastructure.Auth;
 using DotNetApiTemplate.Infrastructure.DependencyInjection;
+using DotNetApiTemplate.Infrastructure.Persistence;
+using Microsoft.EntityFrameworkCore;
 
 const string LocalAngularDevCorsPolicy = "LocalAngularDev";
 
@@ -50,9 +52,23 @@ app.UseStatusCodePages();
 
 if (app.Environment.IsDevelopment())
 {
-    using var scope = app.Services.CreateScope();
-    var seeder = scope.ServiceProvider.GetRequiredService<DevelopmentIdentitySeeder>();
-    await seeder.SeedAsync();
+    using (var scope = app.Services.CreateScope())
+    {
+        var dbContext = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+        var pendingMigrations = await dbContext.Database.GetPendingMigrationsAsync();
+        if (pendingMigrations.Any())
+        {
+            throw new InvalidOperationException("Application startup requires an up-to-date schema. Apply pending migrations explicitly before starting the API.");
+        }
+    }
+
+    var seedOnStartup = builder.Configuration.GetValue<bool>("DevelopmentData:SeedOnStartup");
+    if (seedOnStartup)
+    {
+        using var scope = app.Services.CreateScope();
+        var seeder = scope.ServiceProvider.GetRequiredService<DevelopmentIdentitySeeder>();
+        await seeder.SeedAsync();
+    }
 
     app.UseSwagger();
     app.UseSwaggerUI();

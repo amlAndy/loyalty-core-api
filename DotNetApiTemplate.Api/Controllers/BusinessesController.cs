@@ -155,7 +155,7 @@ public sealed class BusinessesController : ControllerBase
     }
 
     [HttpGet("{businessId:guid}/staff-access")]
-    public async Task<ActionResult<DataResponse<PagedResponse<BusinessStaffAccessRecordDto>>>> SearchStaffAccess(Guid businessId, [FromQuery] string? pinStatus, [FromQuery] int page = 1, [FromQuery] int pageSize = 20, CancellationToken cancellationToken = default)
+    public async Task<ActionResult<DataResponse<PagedResponse<BusinessStaffAccessRecordDto>>>> SearchStaffAccess(Guid businessId, [FromQuery] string? accessStatus, [FromQuery] int page = 1, [FromQuery] int pageSize = 20, CancellationToken cancellationToken = default)
     {
         var accessResult = await AuthorizeAsync(businessId, BusinessAccessOperation.StaffAccessSearch, cancellationToken);
         if (accessResult is not null)
@@ -163,7 +163,7 @@ public sealed class BusinessesController : ControllerBase
             return accessResult;
         }
 
-        var result = await _businessLoyaltyService.SearchStaffAccessAsync(businessId, pinStatus, page, pageSize, cancellationToken);
+        var result = await _businessLoyaltyService.SearchStaffAccessAsync(businessId, accessStatus, page, pageSize, cancellationToken);
         return result is null ? NotFound() : Ok(new DataResponse<PagedResponse<BusinessStaffAccessRecordDto>>(result));
     }
 
@@ -176,15 +176,7 @@ public sealed class BusinessesController : ControllerBase
             return accessResult;
         }
 
-        try
-        {
-            var result = await _businessLoyaltyService.CreateStaffAccessAsync(businessId, request, cancellationToken);
-            return result is null ? NotFound() : Ok(new DataResponse<BusinessStaffAccessRecordDto>(result));
-        }
-        catch (ValidationException exception)
-        {
-            return LoveBrackleyControllerHelpers.CreateValidationProblem(exception);
-        }
+        return Forbid();
     }
 
     [HttpPost("{businessId:guid}/staff-access/{staffAccessId:guid}/reset-pin")]
@@ -196,15 +188,7 @@ public sealed class BusinessesController : ControllerBase
             return accessResult;
         }
 
-        try
-        {
-            var result = await _businessLoyaltyService.ResetStaffPinAsync(businessId, staffAccessId, request, User.GetCurrentUserId(), cancellationToken);
-            return result is null ? NotFound() : Ok(new DataResponse<BusinessStaffAccessRecordDto>(result));
-        }
-        catch (ValidationException exception)
-        {
-            return LoveBrackleyControllerHelpers.CreateValidationProblem(exception);
-        }
+        return Forbid();
     }
 
     [HttpGet("{businessId:guid}/payouts/overview")]

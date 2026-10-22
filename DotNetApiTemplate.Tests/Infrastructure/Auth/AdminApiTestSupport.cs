@@ -499,6 +499,42 @@ internal sealed class FakeAdminLoveBrackleyService : IAdminLoveBrackleyService
         return Task.FromResult(Page(CreateAccessRecord(businessId ?? Guid.NewGuid()), page, pageSize));
     }
 
+    public Task<BusinessStaffAccessRecordDto?> CreateAccessProvisioningAsync(CreateBusinessStaffAccessProvisioningRequest request, string? actorUserId, CancellationToken cancellationToken)
+    {
+        var now = DateTimeOffset.UtcNow;
+        return Task.FromResult<BusinessStaffAccessRecordDto?>(
+            new BusinessStaffAccessRecordDto(
+                Guid.NewGuid(),
+                request.BusinessId,
+                request.UserId,
+                request.DisplayName,
+                string.IsNullOrWhiteSpace(request.BusinessAccessRole) ? "Staff" : request.BusinessAccessRole,
+                request.AccessStatus,
+                "ResetRequired",
+                request.Reason ?? "Created staff access provisioning record.",
+                now,
+                now,
+                now));
+    }
+
+    public Task<BusinessStaffAccessRecordDto?> UpdateAccessProvisioningAsync(Guid staffAccessId, UpdateBusinessStaffAccessProvisioningRequest request, string? actorUserId, CancellationToken cancellationToken)
+    {
+        var now = DateTimeOffset.UtcNow;
+        return Task.FromResult<BusinessStaffAccessRecordDto?>(
+            new BusinessStaffAccessRecordDto(
+                staffAccessId,
+                Guid.NewGuid(),
+                request.UserId,
+                "Updated Staff",
+                "Staff",
+                request.AccessStatus,
+                "ResetRequired",
+                request.Reason ?? "Updated staff access provisioning.",
+                now,
+                now,
+                now));
+    }
+
     public Task<PagedResponse<BusinessPayoutDto>> SearchPayoutsAsync(Guid? businessId, string? status, int page, int pageSize, CancellationToken cancellationToken)
     {
         return Task.FromResult(Page(CreatePayout(businessId ?? Guid.NewGuid()), page, pageSize));
@@ -586,7 +622,7 @@ internal sealed class FakeAdminLoveBrackleyService : IAdminLoveBrackleyService
     private static BusinessStaffAccessRecordDto CreateAccessRecord(Guid businessId)
     {
         var now = DateTimeOffset.UtcNow;
-        return new BusinessStaffAccessRecordDto(Guid.NewGuid(), businessId, Guid.NewGuid().ToString("N"), "Test Staff", "Manager", "Active", "Logged in", now, now, now);
+        return new BusinessStaffAccessRecordDto(Guid.NewGuid(), businessId, Guid.NewGuid().ToString("N"), "Test Staff", "Manager", "Active", "Active", "Logged in", now, now, now);
     }
 
     private static BusinessPayoutDto CreatePayout(Guid businessId)

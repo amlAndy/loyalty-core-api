@@ -237,7 +237,12 @@ public sealed class DevelopmentIdentitySeeder
 
     public async Task SeedAsync(CancellationToken cancellationToken = default)
     {
-        await _dbContext.Database.MigrateAsync(cancellationToken);
+        var pendingMigrations = await _dbContext.Database.GetPendingMigrationsAsync(cancellationToken);
+        if (pendingMigrations.Any())
+        {
+            throw new InvalidOperationException("Development seeding requires an up-to-date schema. Apply pending migrations explicitly before running the seeder.");
+        }
+
         await RemoveObsoleteTemplateSeedDataAsync(cancellationToken);
         await RemoveConflictingSeedRolesAsync(cancellationToken);
 
@@ -933,6 +938,7 @@ public sealed class DevelopmentIdentitySeeder
         existingStaffAccess.UserId = seededStaffAccess.UserId;
         existingStaffAccess.DisplayName = seededStaffAccess.DisplayName;
         existingStaffAccess.BusinessAccessRole = seededStaffAccess.BusinessAccessRole;
+        existingStaffAccess.AccessStatus = seededStaffAccess.AccessStatus;
         existingStaffAccess.PinHash = seededStaffAccess.PinHash;
         existingStaffAccess.PinStatus = seededStaffAccess.PinStatus;
         existingStaffAccess.LastActivitySummary = seededStaffAccess.LastActivitySummary;
@@ -1188,6 +1194,7 @@ public sealed class DevelopmentIdentitySeeder
             UserId = userId,
             DisplayName = name,
             BusinessAccessRole = role,
+            AccessStatus = string.Equals(pinStatus, ActiveStatus, StringComparison.OrdinalIgnoreCase) ? ActiveStatus : "Suspended",
             PinHash = LoveBrackleyService.HashPin("1234"),
             PinStatus = pinStatus,
             LastActivitySummary = "Seeded staff access",

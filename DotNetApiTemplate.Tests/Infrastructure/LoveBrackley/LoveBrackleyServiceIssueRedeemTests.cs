@@ -67,6 +67,7 @@ public sealed class LoveBrackleyServiceIssueRedeemTests
             UserId = seed.OtherStaffUserId,
             DisplayName = "Other Staff",
             BusinessAccessRole = "Staff",
+            AccessStatus = "Active",
             PinHash = "hash",
             PinStatus = "Active",
             LastActivitySummary = string.Empty,
@@ -92,7 +93,25 @@ public sealed class LoveBrackleyServiceIssueRedeemTests
     public async Task RedeemAsync_BusinessStaff_WithoutActiveAccess_ThrowsValidation()
     {
         await using var dbContext = CreateDbContext();
-        var seed = await SeedScenarioAsync(dbContext, staffPinStatus: "ResetRequired");
+        var seed = await SeedScenarioAsync(dbContext, staffPinStatus: "Active", staffAccessStatus: "Suspended");
+        var service = new LoveBrackleyService(dbContext);
+
+        var exception = await Assert.ThrowsAsync<ValidationException>(() =>
+            service.RedeemAsync(
+                seed.BusinessId,
+                new RedeemPointsRequest(seed.MemberId, null, Points: 100, PurchaseAmount: 10m, Notes: null),
+                seed.StaffUserId,
+                seed.BusinessStaffRoleId,
+                CancellationToken.None));
+
+        Assert.Contains(exception.Errors, error => error.PropertyName == "staffAccess");
+    }
+
+    [Fact]
+    public async Task RedeemAsync_BusinessStaff_UnknownAccessStatus_ThrowsValidation()
+    {
+        await using var dbContext = CreateDbContext();
+        var seed = await SeedScenarioAsync(dbContext, staffPinStatus: "Active", staffAccessStatus: "Unknown");
         var service = new LoveBrackleyService(dbContext);
 
         var exception = await Assert.ThrowsAsync<ValidationException>(() =>
@@ -119,6 +138,7 @@ public sealed class LoveBrackleyServiceIssueRedeemTests
             UserId = seed.StaffUserId,
             DisplayName = "Staff User Duplicate",
             BusinessAccessRole = "Staff",
+            AccessStatus = "Active",
             PinHash = "hash",
             PinStatus = "Active",
             LastActivitySummary = string.Empty,
@@ -280,7 +300,7 @@ public sealed class LoveBrackleyServiceIssueRedeemTests
         return new ApplicationDbContext(options);
     }
 
-    private static async Task<TestSeedData> SeedScenarioAsync(ApplicationDbContext dbContext, string staffPinStatus = "Active")
+    private static async Task<TestSeedData> SeedScenarioAsync(ApplicationDbContext dbContext, string staffPinStatus = "Active", string staffAccessStatus = "Active")
     {
         var ownerRoleId = await CreateRoleAsync(dbContext, ApplicationRoleNames.BusinessOwner);
         var staffRoleId = await CreateRoleAsync(dbContext, ApplicationRoleNames.BusinessStaff);
@@ -313,6 +333,7 @@ public sealed class LoveBrackleyServiceIssueRedeemTests
             UserId = staffUserId,
             DisplayName = "Staff User",
             BusinessAccessRole = "Staff",
+            AccessStatus = staffAccessStatus,
             PinHash = "hash",
             PinStatus = staffPinStatus,
             LastActivitySummary = string.Empty,

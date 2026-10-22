@@ -785,6 +785,11 @@ namespace DotNetApiTemplate.Infrastructure.Persistence.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uniqueidentifier");
 
+                    b.Property<string>("AccessStatus")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
                     b.Property<string>("BusinessAccessRole")
                         .IsRequired()
                         .HasMaxLength(50)
@@ -829,6 +834,8 @@ namespace DotNetApiTemplate.Infrastructure.Persistence.Migrations
                     b.HasKey("Id");
 
                     b.HasIndex("UserId");
+
+                    b.HasIndex("BusinessProfileId", "AccessStatus");
 
                     b.HasIndex("BusinessProfileId", "PinStatus");
 

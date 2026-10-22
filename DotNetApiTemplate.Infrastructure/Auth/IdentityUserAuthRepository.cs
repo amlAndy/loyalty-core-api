@@ -516,7 +516,7 @@ public sealed class IdentityUserAuthRepository : IUserAuthRepository
     {
         var assignedBusinessIds = await _dbContext.BusinessStaffAccesses
             .AsNoTracking()
-            .Where(candidate => candidate.UserId == userId && candidate.PinStatus == ActiveStatus)
+            .Where(candidate => candidate.UserId == userId && candidate.AccessStatus == ActiveStatus)
             .Select(candidate => candidate.BusinessProfileId)
             .Distinct()
             .OrderBy(candidate => candidate)

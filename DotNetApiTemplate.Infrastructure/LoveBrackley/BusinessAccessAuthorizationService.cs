@@ -7,6 +7,9 @@ namespace DotNetApiTemplate.Infrastructure.LoveBrackley;
 
 public sealed class BusinessAccessAuthorizationService : IBusinessAccessAuthorizationService
 {
+    private const string ActiveStatus = "Active";
+    private const string ActiveStatusUpper = "ACTIVE";
+
     private readonly ApplicationDbContext _dbContext;
 
     public BusinessAccessAuthorizationService(ApplicationDbContext dbContext)
@@ -41,6 +44,18 @@ public sealed class BusinessAccessAuthorizationService : IBusinessAccessAuthoriz
             return BusinessAccessAuthorizationResult.Forbidden;
         }
 
+        var isUserActive = await _dbContext.Users
+            .AsNoTracking()
+            .AnyAsync(candidate =>
+                candidate.Id == userId
+                && candidate.Status != null
+                && candidate.Status.ToUpper() == ActiveStatusUpper, cancellationToken);
+
+        if (!isUserActive)
+        {
+            return BusinessAccessAuthorizationResult.Forbidden;
+        }
+
         var isTransactional = operation is BusinessAccessOperation.EarnPoints or BusinessAccessOperation.RedeemPoints;
 
         if (string.Equals(activeRoleName, ApplicationRoleNames.BusinessOwner, StringComparison.OrdinalIgnoreCase))
@@ -68,7 +83,7 @@ public sealed class BusinessAccessAuthorizationService : IBusinessAccessAuthoriz
         }
 
         var staff = matchingStaffAccesses[0];
-        if (!IsActiveStaffStatus(staff.PinStatus))
+        if (!IsActiveStaffStatus(staff.AccessStatus))
         {
             return BusinessAccessAuthorizationResult.Forbidden;
         }

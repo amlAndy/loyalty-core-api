@@ -46,6 +46,35 @@ public sealed class AdminApiAuthorizationMatrixTests
         }
     }
 
+    [Fact]
+    public async Task ProvisioningRoutes_Deny_BusinessOwnerEvenWithAdminConfigureClaim()
+    {
+        await using var factory = new AdminApiFactory();
+        using var client = await factory.CreateAuthenticatedClientAsync(
+            ApplicationRoleNames.BusinessOwner,
+            new RoleSeed(ApplicationRoleNames.BusinessOwner, [AdminPermissionPolicies.AdminConfigure]));
+
+        var createResponse = await client.PostAsJsonAsync(
+            "/api/admin/access",
+            new CreateBusinessStaffAccessProvisioningRequest(
+                Guid.Parse("00000000-0000-0000-0000-000000000020"),
+                "owner-user",
+                "Owner Provision Attempt",
+                "Staff",
+                "Suspended",
+                "Should be denied"));
+
+        var updateResponse = await client.PutAsJsonAsync(
+            "/api/admin/access/00000000-0000-0000-0000-000000000021/provisioning",
+            new UpdateBusinessStaffAccessProvisioningRequest(
+                "owner-user",
+                "Active",
+                "Should be denied"));
+
+        Assert.Equal(HttpStatusCode.Forbidden, createResponse.StatusCode);
+        Assert.Equal(HttpStatusCode.Forbidden, updateResponse.StatusCode);
+    }
+
     public static IEnumerable<object[]> AllowedCases()
     {
         yield return [new RouteMatrixCase("Users detail", HttpMethod.Get, "/api/admin/users/user-1", null, AdminPermissionPolicies.UsersView, HttpStatusCode.OK)];
@@ -130,6 +159,17 @@ public sealed class AdminApiAuthorizationMatrixTests
 
         yield return [new RouteMatrixCase("Transactions list", HttpMethod.Get, "/api/admin/transactions", null, AdminPermissionPolicies.AdminView, HttpStatusCode.OK)];
         yield return [new RouteMatrixCase("Access list", HttpMethod.Get, "/api/admin/access", null, AdminPermissionPolicies.AdminView, HttpStatusCode.OK)];
+        yield return [new RouteMatrixCase("Access provisioning create", HttpMethod.Post, "/api/admin/access", new CreateBusinessStaffAccessProvisioningRequest(
+            Guid.Parse("00000000-0000-0000-0000-000000000010"),
+            "user-1",
+            "Provisioned Staff",
+            "Staff",
+            "Suspended",
+            "Create provisioning"), AdminPermissionPolicies.AdminConfigure, HttpStatusCode.OK)];
+        yield return [new RouteMatrixCase("Access provisioning update", HttpMethod.Put, "/api/admin/access/00000000-0000-0000-0000-000000000011/provisioning", new UpdateBusinessStaffAccessProvisioningRequest(
+            "user-1",
+            "Active",
+            "Activate provisioning"), AdminPermissionPolicies.AdminConfigure, HttpStatusCode.OK)];
         yield return [new RouteMatrixCase("Points rule read", HttpMethod.Get, "/api/admin/settings/points-rule", null, AdminPermissionPolicies.AdminView, HttpStatusCode.OK)];
         yield return [new RouteMatrixCase("Points rule update", HttpMethod.Put, "/api/admin/settings/points-rule", new UpdatePointsRuleRequest("Default", 10, 1, 10m), AdminPermissionPolicies.AdminConfigure, HttpStatusCode.OK)];
         yield return [new RouteMatrixCase("Payouts list", HttpMethod.Get, "/api/admin/payouts", null, AdminPermissionPolicies.AdminView, HttpStatusCode.OK)];

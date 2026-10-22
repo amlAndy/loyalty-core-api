@@ -322,9 +322,11 @@ public sealed class ApplicationDbContext : IdentityDbContext<ApplicationUser, Ap
             entity.Property(staff => staff.UserId).HasMaxLength(450);
             entity.Property(staff => staff.DisplayName).IsRequired().HasMaxLength(200);
             entity.Property(staff => staff.BusinessAccessRole).IsRequired().HasMaxLength(50);
+            entity.Property(staff => staff.AccessStatus).IsRequired().HasMaxLength(50);
             entity.Property(staff => staff.PinHash).IsRequired().HasMaxLength(256);
             entity.Property(staff => staff.PinStatus).IsRequired().HasMaxLength(50);
             entity.Property(staff => staff.LastActivitySummary).IsRequired().HasMaxLength(500);
+            entity.HasIndex(staff => new { staff.BusinessProfileId, staff.AccessStatus });
             entity.HasIndex(staff => new { staff.BusinessProfileId, staff.PinStatus });
             entity.HasIndex(staff => staff.UserId);
             entity.HasOne(staff => staff.BusinessProfile)

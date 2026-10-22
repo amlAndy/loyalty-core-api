@@ -138,6 +138,7 @@ public sealed class IdentityUserAuthRepositoryTests
             UserId = staffUser.Id,
             DisplayName = "Staff User",
             BusinessAccessRole = "Staff",
+            AccessStatus = "Active",
             PinHash = "hash",
             PinStatus = "Active",
             LastActivitySummary = string.Empty,
@@ -175,6 +176,7 @@ public sealed class IdentityUserAuthRepositoryTests
             UserId = staffUser.Id,
             DisplayName = "Staff Flow",
             BusinessAccessRole = "Staff",
+            AccessStatus = "Active",
             PinHash = "hash",
             PinStatus = "Active",
             LastActivitySummary = string.Empty,
@@ -216,6 +218,7 @@ public sealed class IdentityUserAuthRepositoryTests
             UserId = staffUser.Id,
             DisplayName = "Staff Ambiguity",
             BusinessAccessRole = "Staff",
+            AccessStatus = "Active",
             PinHash = "hash",
             PinStatus = "Active",
             LastActivitySummary = string.Empty,
@@ -229,6 +232,7 @@ public sealed class IdentityUserAuthRepositoryTests
             UserId = staffUser.Id,
             DisplayName = "Staff Ambiguity",
             BusinessAccessRole = "Staff",
+            AccessStatus = "Active",
             PinHash = "hash",
             PinStatus = "Active",
             LastActivitySummary = string.Empty,
@@ -239,6 +243,62 @@ public sealed class IdentityUserAuthRepositoryTests
 
         await Assert.ThrowsAsync<InvalidOperationException>(() =>
             repository.AuthenticateAsync(staffUser.Email!, "Password1!", CancellationToken.None));
+    }
+
+    [Fact]
+    public async Task AuthenticateAsync_BusinessStaffSession_WithOnlySuspendedOrUnknownAssignments_HasNullBusinessId()
+    {
+        await using var dbContext = CreateDbContext();
+        var userManager = CreateUserManager(dbContext);
+        var repository = new IdentityUserAuthRepository(dbContext, userManager, CreateJwtTokenService());
+        var staffRoleId = await CreateRoleAsync(dbContext, ApplicationRoleNames.BusinessStaff);
+        var ownerRoleId = await CreateRoleAsync(dbContext, ApplicationRoleNames.BusinessOwner);
+        var owner = await CreateUserAsync(userManager, "owner-staff-status@example.com", "Owner Staff Status");
+        var staffUser = await CreateUserAsync(userManager, "staff-status@example.com", "Staff Status");
+        await AssignRoleAsync(dbContext, owner.Id, ownerRoleId);
+        await AssignRoleAsync(dbContext, staffUser.Id, staffRoleId);
+
+        var businessA = Guid.Parse("22222222-2222-2222-2222-222222222215");
+        var businessB = Guid.Parse("22222222-2222-2222-2222-222222222216");
+        dbContext.BusinessProfiles.Add(CreateBusinessProfile(businessA, owner.Id, "Suspended Assignment"));
+        dbContext.BusinessProfiles.Add(CreateBusinessProfile(businessB, owner.Id, "Unknown Assignment"));
+
+        dbContext.BusinessStaffAccesses.Add(new BusinessStaffAccessEntity
+        {
+            Id = Guid.Parse("44444444-4444-4444-4444-444444444415"),
+            BusinessProfileId = businessA,
+            UserId = staffUser.Id,
+            DisplayName = "Staff Status",
+            BusinessAccessRole = "Staff",
+            AccessStatus = "Suspended",
+            PinHash = "hash",
+            PinStatus = "Active",
+            LastActivitySummary = string.Empty,
+            CreatedUtc = DateTimeOffset.UtcNow,
+            UpdatedUtc = DateTimeOffset.UtcNow,
+        });
+
+        dbContext.BusinessStaffAccesses.Add(new BusinessStaffAccessEntity
+        {
+            Id = Guid.Parse("44444444-4444-4444-4444-444444444416"),
+            BusinessProfileId = businessB,
+            UserId = staffUser.Id,
+            DisplayName = "Staff Status",
+            BusinessAccessRole = "Staff",
+            AccessStatus = "Unknown",
+            PinHash = "hash",
+            PinStatus = "Active",
+            LastActivitySummary = string.Empty,
+            CreatedUtc = DateTimeOffset.UtcNow,
+            UpdatedUtc = DateTimeOffset.UtcNow,
+        });
+
+        await dbContext.SaveChangesAsync();
+
+        var result = await repository.AuthenticateAsync(staffUser.Email!, "Password1!", CancellationToken.None);
+
+        Assert.NotNull(result);
+        Assert.Null(result!.User.BusinessId);
     }
 
     [Fact]

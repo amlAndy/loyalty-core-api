@@ -37,7 +37,7 @@ public interface IBusinessLoyaltyService
     Task<LoyaltyTransactionDto?> RedeemAsync(Guid businessId, RedeemPointsRequest request, string? actorUserId, string? activeRoleId, CancellationToken cancellationToken);
     Task<BusinessTransactionSearchResponse?> SearchTransactionsAsync(Guid businessId, string? searchTerm, string? dateRange, string? transactionType, Guid? staffMemberId, string? status, int page, int pageSize, CancellationToken cancellationToken);
     Task<BusinessStaffAccessOverviewDto?> GetStaffAccessOverviewAsync(Guid businessId, CancellationToken cancellationToken);
-    Task<PagedResponse<BusinessStaffAccessRecordDto>?> SearchStaffAccessAsync(Guid businessId, string? pinStatus, int page, int pageSize, CancellationToken cancellationToken);
+    Task<PagedResponse<BusinessStaffAccessRecordDto>?> SearchStaffAccessAsync(Guid businessId, string? accessStatus, int page, int pageSize, CancellationToken cancellationToken);
     Task<BusinessStaffAccessRecordDto?> CreateStaffAccessAsync(Guid businessId, CreateBusinessStaffAccessRequest request, CancellationToken cancellationToken);
     Task<BusinessStaffAccessRecordDto?> ResetStaffPinAsync(Guid businessId, Guid staffAccessId, ResetStaffPinRequest request, string? actorUserId, CancellationToken cancellationToken);
     Task<BusinessPayoutOverviewDto?> GetPayoutOverviewAsync(Guid businessId, CancellationToken cancellationToken);
@@ -66,6 +66,8 @@ public interface IAdminLoveBrackleyService
     Task<AdminReviewCaseDto?> EscalateReviewAsync(Guid caseId, EscalateReviewCaseRequest request, string? actorUserId, CancellationToken cancellationToken);
     Task<PagedResponse<LoyaltyTransactionDto>> SearchTransactionsAsync(Guid? businessId, Guid? memberId, string? transactionType, string? status, int page, int pageSize, CancellationToken cancellationToken);
     Task<PagedResponse<BusinessStaffAccessRecordDto>> SearchAccessAsync(Guid? businessId, string? status, int page, int pageSize, CancellationToken cancellationToken);
+    Task<BusinessStaffAccessRecordDto?> CreateAccessProvisioningAsync(CreateBusinessStaffAccessProvisioningRequest request, string? actorUserId, CancellationToken cancellationToken);
+    Task<BusinessStaffAccessRecordDto?> UpdateAccessProvisioningAsync(Guid staffAccessId, UpdateBusinessStaffAccessProvisioningRequest request, string? actorUserId, CancellationToken cancellationToken);
     Task<PagedResponse<BusinessPayoutDto>> SearchPayoutsAsync(Guid? businessId, string? status, int page, int pageSize, CancellationToken cancellationToken);
     Task<PointsRuleDto?> GetPointsRuleAsync(CancellationToken cancellationToken);
     Task<PointsRuleDto> UpdatePointsRuleAsync(UpdatePointsRuleRequest request, string? actorUserId, CancellationToken cancellationToken);

@@ -602,7 +602,7 @@ public sealed class LoveBrackleyService : IMemberLoyaltyService, ILoveBrackleyLo
             security);
     }
 
-    public async Task<PagedResponse<BusinessStaffAccessRecordDto>?> SearchStaffAccessAsync(Guid businessId, string? pinStatus, int page, int pageSize, CancellationToken cancellationToken)
+    public async Task<PagedResponse<BusinessStaffAccessRecordDto>?> SearchStaffAccessAsync(Guid businessId, string? accessStatus, int page, int pageSize, CancellationToken cancellationToken)
     {
         if (!await BusinessExistsAsync(businessId, cancellationToken))
         {
@@ -612,9 +612,9 @@ public sealed class LoveBrackleyService : IMemberLoyaltyService, ILoveBrackleyLo
         page = NormalizePage(page);
         pageSize = NormalizePageSize(pageSize);
         var query = _dbContext.BusinessStaffAccesses.AsNoTracking().Where(staff => staff.BusinessProfileId == businessId);
-        if (!string.IsNullOrWhiteSpace(pinStatus))
+        if (!string.IsNullOrWhiteSpace(accessStatus))
         {
-            query = query.Where(staff => staff.PinStatus == pinStatus);
+            query = query.Where(staff => staff.AccessStatus == accessStatus);
         }
 
         var totalCount = await query.CountAsync(cancellationToken);
@@ -638,6 +638,7 @@ public sealed class LoveBrackleyService : IMemberLoyaltyService, ILoveBrackleyLo
             UserId = TrimToNull(request.UserId),
             DisplayName = request.DisplayName.Trim(),
             BusinessAccessRole = string.IsNullOrWhiteSpace(request.BusinessAccessRole) ? "Staff" : request.BusinessAccessRole.Trim(),
+            AccessStatus = ActiveStatus,
             PinHash = HashPin(request.Pin),
             PinStatus = ActiveStatus,
             LastActivitySummary = "Staff access created",
@@ -1048,10 +1049,156 @@ public sealed class LoveBrackleyService : IMemberLoyaltyService, ILoveBrackleyLo
         pageSize = NormalizePageSize(pageSize);
         var query = _dbContext.BusinessStaffAccesses.AsNoTracking().AsQueryable();
         if (businessId.HasValue) query = query.Where(staff => staff.BusinessProfileId == businessId.Value);
-        if (!string.IsNullOrWhiteSpace(status)) query = query.Where(staff => staff.PinStatus == status);
+        if (!string.IsNullOrWhiteSpace(status)) query = query.Where(staff => staff.AccessStatus == status);
         var totalCount = await query.CountAsync(cancellationToken);
         var items = await query.OrderBy(staff => staff.DisplayName).Skip((page - 1) * pageSize).Take(pageSize).Select(staff => ToStaffDto(staff)).ToListAsync(cancellationToken);
         return new PagedResponse<BusinessStaffAccessRecordDto>(items, page, pageSize, totalCount);
+    }
+
+    public async Task<BusinessStaffAccessRecordDto?> CreateAccessProvisioningAsync(CreateBusinessStaffAccessProvisioningRequest request, string? actorUserId, CancellationToken cancellationToken)
+    {
+        if (!await BusinessExistsAsync(request.BusinessId, cancellationToken))
+        {
+            return null;
+        }
+
+        if (string.IsNullOrWhiteSpace(request.DisplayName))
+        {
+            ThrowValidation(nameof(request.DisplayName), "Display name is required.");
+        }
+
+        var normalizedStatus = await ValidateAndNormalizeProvisioningAsync(
+            request.UserId,
+            request.AccessStatus,
+            null,
+            cancellationToken);
+
+        var now = DateTimeOffset.UtcNow;
+        var staffAccess = new BusinessStaffAccessEntity
+        {
+            Id = Guid.NewGuid(),
+            BusinessProfileId = request.BusinessId,
+            UserId = TrimToNull(request.UserId),
+            DisplayName = request.DisplayName.Trim(),
+            BusinessAccessRole = string.IsNullOrWhiteSpace(request.BusinessAccessRole) ? "Staff" : request.BusinessAccessRole.Trim(),
+            AccessStatus = normalizedStatus,
+            PinHash = HashPin(Convert.ToHexString(RandomNumberGenerator.GetBytes(8))),
+            PinStatus = "ResetRequired",
+            LastActivitySummary = TrimToNull(request.Reason) ?? "Admin created staff access provisioning record",
+            LastActivityUtc = now,
+            CreatedUtc = now,
+            UpdatedUtc = now,
+        };
+
+        _dbContext.BusinessStaffAccesses.Add(staffAccess);
+
+        AddAdminAudit(
+            actorUserId,
+            "BusinessStaffAccess",
+            staffAccess.Id.ToString(),
+            "CreateProvisioning",
+            "Created staff access provisioning record.",
+            TrimToNull(request.Reason),
+            null,
+            JsonSerializer.Serialize(ToStaffDto(staffAccess)));
+
+        await _dbContext.SaveChangesAsync(cancellationToken);
+        return ToStaffDto(staffAccess);
+    }
+
+    public async Task<BusinessStaffAccessRecordDto?> UpdateAccessProvisioningAsync(Guid staffAccessId, UpdateBusinessStaffAccessProvisioningRequest request, string? actorUserId, CancellationToken cancellationToken)
+    {
+        var staffAccess = await _dbContext.BusinessStaffAccesses.SingleOrDefaultAsync(candidate => candidate.Id == staffAccessId, cancellationToken);
+        if (staffAccess is null)
+        {
+            return null;
+        }
+
+        var normalizedStatus = await ValidateAndNormalizeProvisioningAsync(
+            request.UserId,
+            request.AccessStatus,
+            staffAccessId,
+            cancellationToken);
+
+        var before = ToStaffDto(staffAccess);
+        staffAccess.UserId = TrimToNull(request.UserId);
+        staffAccess.AccessStatus = normalizedStatus;
+        staffAccess.LastActivitySummary = TrimToNull(request.Reason) ?? "Admin updated staff access provisioning";
+        staffAccess.LastActivityUtc = DateTimeOffset.UtcNow;
+        staffAccess.UpdatedUtc = DateTimeOffset.UtcNow;
+
+        AddAdminAudit(
+            actorUserId,
+            "BusinessStaffAccess",
+            staffAccess.Id.ToString(),
+            "UpdateProvisioning",
+            "Updated staff access provisioning.",
+            TrimToNull(request.Reason),
+            JsonSerializer.Serialize(before),
+            JsonSerializer.Serialize(ToStaffDto(staffAccess)));
+
+        await _dbContext.SaveChangesAsync(cancellationToken);
+        return ToStaffDto(staffAccess);
+    }
+
+    private async Task<string> ValidateAndNormalizeProvisioningAsync(string? userId, string? accessStatus, Guid? currentStaffAccessId, CancellationToken cancellationToken)
+    {
+        var requestedStatus = accessStatus?.Trim();
+        if (!string.Equals(requestedStatus, ActiveStatus, StringComparison.OrdinalIgnoreCase) &&
+            !string.Equals(requestedStatus, "Suspended", StringComparison.OrdinalIgnoreCase))
+        {
+            ThrowValidation(nameof(accessStatus), "Access status must be Active or Suspended.");
+        }
+
+        var normalizedUserId = TrimToNull(userId);
+        if (normalizedUserId is not null)
+        {
+            var user = await _dbContext.Users.AsNoTracking().SingleOrDefaultAsync(candidate => candidate.Id == normalizedUserId, cancellationToken);
+            if (user is null)
+            {
+                ThrowValidation(nameof(userId), "Target user account was not found.");
+            }
+
+            if (!string.Equals(user!.Status, ActiveStatus, StringComparison.OrdinalIgnoreCase))
+            {
+                ThrowValidation(nameof(userId), "Target user account must be active.");
+            }
+
+            var hasBusinessStaffRole = await _dbContext.UserRoles
+                .Where(candidate => candidate.UserId == normalizedUserId)
+                .Join(_dbContext.Roles, userRole => userRole.RoleId, role => role.Id, (_, role) => role.Name)
+                .AnyAsync(roleName => roleName == ApplicationRoleNames.BusinessStaff, cancellationToken);
+
+            if (!hasBusinessStaffRole)
+            {
+                ThrowValidation(nameof(userId), "Target user must have the BusinessStaff role.");
+            }
+        }
+
+        var normalizedStatus = string.Equals(requestedStatus, ActiveStatus, StringComparison.OrdinalIgnoreCase)
+            ? ActiveStatus
+            : "Suspended";
+
+        if (normalizedStatus == ActiveStatus)
+        {
+            if (normalizedUserId is null)
+            {
+                ThrowValidation(nameof(userId), "Active access requires a linked user account.");
+            }
+
+            var conflictingActiveAssignments = await _dbContext.BusinessStaffAccesses
+                .Where(candidate => candidate.Id != currentStaffAccessId && candidate.UserId == normalizedUserId && candidate.AccessStatus == ActiveStatus)
+                .Select(candidate => candidate.Id)
+                .Take(1)
+                .ToListAsync(cancellationToken);
+
+            if (conflictingActiveAssignments.Count > 0)
+            {
+                ThrowValidation(nameof(userId), "Target user already has active staff access. Resolve the existing assignment before activating this record.");
+            }
+        }
+
+        return normalizedStatus;
     }
 
     public async Task<PagedResponse<BusinessPayoutDto>> SearchPayoutsAsync(Guid? businessId, string? status, int page, int pageSize, CancellationToken cancellationToken)
@@ -1200,7 +1347,7 @@ public sealed class LoveBrackleyService : IMemberLoyaltyService, ILoveBrackleyLo
         }
 
         var staffAccesses = await _dbContext.BusinessStaffAccesses
-            .Where(candidate => candidate.BusinessProfileId == businessId && candidate.UserId == actorUserId && candidate.PinStatus == ActiveStatus)
+            .Where(candidate => candidate.BusinessProfileId == businessId && candidate.UserId == actorUserId && candidate.AccessStatus == ActiveStatus)
             .OrderBy(candidate => candidate.Id)
             .Take(2)
             .ToListAsync(cancellationToken);
@@ -1339,7 +1486,7 @@ public sealed class LoveBrackleyService : IMemberLoyaltyService, ILoveBrackleyLo
 
     private static BusinessStaffAccessRecordDto ToStaffDto(BusinessStaffAccessEntity staff)
     {
-        return new BusinessStaffAccessRecordDto(staff.Id, staff.BusinessProfileId, staff.UserId, staff.DisplayName, staff.BusinessAccessRole, staff.PinStatus, staff.LastActivitySummary, staff.LastActivityUtc, staff.CreatedUtc, staff.UpdatedUtc);
+        return new BusinessStaffAccessRecordDto(staff.Id, staff.BusinessProfileId, staff.UserId, staff.DisplayName, staff.BusinessAccessRole, staff.AccessStatus, staff.PinStatus, staff.LastActivitySummary, staff.LastActivityUtc, staff.CreatedUtc, staff.UpdatedUtc);
     }
 
     private static BusinessPayoutDto ToPayoutDto(BusinessPayoutPeriodEntity payout)

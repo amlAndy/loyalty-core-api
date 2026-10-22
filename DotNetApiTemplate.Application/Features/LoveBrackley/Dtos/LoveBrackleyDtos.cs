@@ -195,6 +195,7 @@ public sealed record BusinessStaffAccessRecordDto(
     string? UserId,
     string DisplayName,
     string BusinessAccessRole,
+    string AccessStatus,
     string PinStatus,
     string LastActivitySummary,
     DateTimeOffset? LastActivityUtc,
@@ -204,6 +205,10 @@ public sealed record BusinessStaffAccessRecordDto(
 public sealed record CreateBusinessStaffAccessRequest(string? UserId, string DisplayName, string BusinessAccessRole, string Pin);
 
 public sealed record ResetStaffPinRequest(string NewPin, string? Reason);
+
+public sealed record CreateBusinessStaffAccessProvisioningRequest(Guid BusinessId, string? UserId, string DisplayName, string BusinessAccessRole, string AccessStatus, string? Reason);
+
+public sealed record UpdateBusinessStaffAccessProvisioningRequest(string? UserId, string AccessStatus, string? Reason);
 
 public sealed record BusinessPayoutOverviewDto(Guid BusinessId, decimal PendingTotal, decimal PaidTotal, decimal HeldTotal, IReadOnlyList<BusinessPayoutDto> RecentPayouts);
 

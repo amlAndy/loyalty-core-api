@@ -87,6 +87,69 @@ public sealed class BusinessAccessAuthorizationServiceTests
     }
 
     [Fact]
+    public async Task AuthorizeAsync_BusinessStaff_SuspendedAccess_IsForbidden()
+    {
+        await using var dbContext = CreateDbContext();
+        var seed = await SeedAuthorizationScenarioAsync(dbContext);
+        var service = new BusinessAccessAuthorizationService(dbContext);
+
+        var staffAccess = await dbContext.BusinessStaffAccesses.SingleAsync(candidate =>
+            candidate.BusinessProfileId == seed.ActiveBusinessId
+            && candidate.UserId == seed.StaffUserId);
+        staffAccess.AccessStatus = "Suspended";
+        await dbContext.SaveChangesAsync();
+
+        var result = await service.AuthorizeAsync(
+            seed.StaffUserId,
+            seed.BusinessStaffRoleId,
+            seed.ActiveBusinessId,
+            BusinessAccessOperation.RedeemPoints,
+            CancellationToken.None);
+
+        Assert.Equal(BusinessAccessDecision.Forbidden, result.Decision);
+    }
+
+    [Fact]
+    public async Task AuthorizeAsync_BusinessStaff_UnknownAccessStatus_IsForbidden()
+    {
+        await using var dbContext = CreateDbContext();
+        var seed = await SeedAuthorizationScenarioAsync(dbContext);
+        var service = new BusinessAccessAuthorizationService(dbContext);
+
+        var staffAccess = await dbContext.BusinessStaffAccesses.SingleAsync(candidate =>
+            candidate.BusinessProfileId == seed.ActiveBusinessId
+            && candidate.UserId == seed.StaffUserId);
+        staffAccess.AccessStatus = "Unknown";
+        await dbContext.SaveChangesAsync();
+
+        var result = await service.AuthorizeAsync(
+            seed.StaffUserId,
+            seed.BusinessStaffRoleId,
+            seed.ActiveBusinessId,
+            BusinessAccessOperation.RedeemPoints,
+            CancellationToken.None);
+
+        Assert.Equal(BusinessAccessDecision.Forbidden, result.Decision);
+    }
+
+    [Fact]
+    public async Task AuthorizeAsync_BusinessOwner_CanReadStaffAccessList()
+    {
+        await using var dbContext = CreateDbContext();
+        var seed = await SeedAuthorizationScenarioAsync(dbContext);
+        var service = new BusinessAccessAuthorizationService(dbContext);
+
+        var result = await service.AuthorizeAsync(
+            seed.OwnerUserId,
+            seed.BusinessOwnerRoleId,
+            seed.ActiveBusinessId,
+            BusinessAccessOperation.StaffAccessSearch,
+            CancellationToken.None);
+
+        Assert.Equal(BusinessAccessDecision.Allowed, result.Decision);
+    }
+
+    [Fact]
     public async Task AuthorizeAsync_BusinessStaff_UnassignedBusiness_IsForbidden()
     {
         await using var dbContext = CreateDbContext();
@@ -201,6 +264,7 @@ public sealed class BusinessAccessAuthorizationServiceTests
             UserId = staffUserId,
             DisplayName = "Staff",
             BusinessAccessRole = "Staff",
+            AccessStatus = "Active",
             PinHash = "hash",
             PinStatus = "Active",
             LastActivitySummary = string.Empty,
@@ -217,6 +281,7 @@ public sealed class BusinessAccessAuthorizationServiceTests
                 UserId = staffUserId,
                 DisplayName = "Staff Duplicate",
                 BusinessAccessRole = "Staff",
+                AccessStatus = "Active",
                 PinHash = "hash",
                 PinStatus = "Active",
                 LastActivitySummary = string.Empty,

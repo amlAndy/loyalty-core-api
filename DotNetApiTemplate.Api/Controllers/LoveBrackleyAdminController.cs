@@ -200,6 +200,36 @@ public sealed class LoveBrackleyAdminController : ControllerBase
         return Ok(new DataResponse<PagedResponse<BusinessStaffAccessRecordDto>>(await _adminService.SearchAccessAsync(businessId, status, page, pageSize, cancellationToken)));
     }
 
+    [Authorize(Policy = AdminPermissionPolicies.AdminConfigure)]
+    [HttpPost("access")]
+    public async Task<ActionResult<DataResponse<BusinessStaffAccessRecordDto>>> CreateAccessProvisioning([FromBody] CreateBusinessStaffAccessProvisioningRequest request, CancellationToken cancellationToken)
+    {
+        try
+        {
+            var result = await _adminService.CreateAccessProvisioningAsync(request, User.GetCurrentUserId(), cancellationToken);
+            return result is null ? NotFound() : Ok(new DataResponse<BusinessStaffAccessRecordDto>(result));
+        }
+        catch (ValidationException exception)
+        {
+            return LoveBrackleyControllerHelpers.CreateValidationProblem(exception);
+        }
+    }
+
+    [Authorize(Policy = AdminPermissionPolicies.AdminConfigure)]
+    [HttpPut("access/{staffAccessId:guid}/provisioning")]
+    public async Task<ActionResult<DataResponse<BusinessStaffAccessRecordDto>>> UpdateAccessProvisioning(Guid staffAccessId, [FromBody] UpdateBusinessStaffAccessProvisioningRequest request, CancellationToken cancellationToken)
+    {
+        try
+        {
+            var result = await _adminService.UpdateAccessProvisioningAsync(staffAccessId, request, User.GetCurrentUserId(), cancellationToken);
+            return result is null ? NotFound() : Ok(new DataResponse<BusinessStaffAccessRecordDto>(result));
+        }
+        catch (ValidationException exception)
+        {
+            return LoveBrackleyControllerHelpers.CreateValidationProblem(exception);
+        }
+    }
+
     [Authorize(Policy = AdminPermissionPolicies.AdminView)]
     [HttpGet("payouts")]
     public async Task<ActionResult<DataResponse<PagedResponse<BusinessPayoutDto>>>> SearchPayouts([FromQuery] Guid? businessId, [FromQuery] string? status, [FromQuery] int page = 1, [FromQuery] int pageSize = 20, CancellationToken cancellationToken = default)

@@ -129,6 +129,7 @@ public sealed class BusinessStaffAccessEntity
     public string? UserId { get; set; }
     public string DisplayName { get; set; } = string.Empty;
     public string BusinessAccessRole { get; set; } = string.Empty;
+    public string AccessStatus { get; set; } = string.Empty;
     public string PinHash { get; set; } = string.Empty;
     public string PinStatus { get; set; } = string.Empty;
     public string LastActivitySummary { get; set; } = string.Empty;
