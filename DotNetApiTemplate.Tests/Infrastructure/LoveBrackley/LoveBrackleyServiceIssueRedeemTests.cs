@@ -178,6 +178,98 @@ public sealed class LoveBrackleyServiceIssueRedeemTests
         Assert.Contains(exception.Errors, error => error.PropertyName == "Points" && error.ErrorMessage.Contains("enough points"));
     }
 
+    [Fact]
+    public async Task GetMemberByCardAsync_PublicMemberReference_ReturnsMember()
+    {
+        await using var dbContext = CreateDbContext();
+        var seed = await SeedScenarioAsync(dbContext);
+        var service = new LoveBrackleyService(dbContext);
+
+        var result = await service.GetMemberByCardAsync(seed.BusinessId, "LBM-TEST", CancellationToken.None);
+
+        Assert.NotNull(result);
+        Assert.Equal(seed.MemberId, result!.MemberId);
+        Assert.Equal("LBM-TEST", result.PublicMemberReference);
+    }
+
+    [Fact]
+    public async Task GetMemberByCardAsync_CardCode_ReturnsMember()
+    {
+        await using var dbContext = CreateDbContext();
+        var seed = await SeedScenarioAsync(dbContext);
+        var service = new LoveBrackleyService(dbContext);
+
+        var result = await service.GetMemberByCardAsync(seed.BusinessId, "LB-CARD-TEST", CancellationToken.None);
+
+        Assert.NotNull(result);
+        Assert.Equal(seed.MemberId, result!.MemberId);
+    }
+
+    [Fact]
+    public async Task GetMemberByCardAsync_UnknownOrWhitespaceIdentifier_ReturnsNull()
+    {
+        await using var dbContext = CreateDbContext();
+        var seed = await SeedScenarioAsync(dbContext);
+        var service = new LoveBrackleyService(dbContext);
+
+        var unknown = await service.GetMemberByCardAsync(seed.BusinessId, "NOT-FOUND", CancellationToken.None);
+        var surroundingWhitespace = await service.GetMemberByCardAsync(seed.BusinessId, " LBM-TEST ", CancellationToken.None);
+
+        Assert.Null(unknown);
+        Assert.Null(surroundingWhitespace);
+    }
+
+    [Fact]
+    public async Task GetMemberByCardAsync_AmbiguousIdentifier_ThrowsValidation()
+    {
+        await using var dbContext = CreateDbContext();
+        var seed = await SeedScenarioAsync(dbContext);
+
+        dbContext.MemberProfiles.Add(CreateMember(Guid.Parse("11111111-1111-1111-1111-111111111299"), "Second Member", pointsBalance: 100));
+        await dbContext.SaveChangesAsync();
+
+        var service = new LoveBrackleyService(dbContext);
+
+        var exception = await Assert.ThrowsAsync<ValidationException>(() =>
+            service.GetMemberByCardAsync(seed.BusinessId, "LBM-TEST", CancellationToken.None));
+
+        Assert.Contains(exception.Errors, error => error.PropertyName == "identifier" && error.ErrorMessage.Contains("Ambiguous"));
+    }
+
+    [Fact]
+    public async Task GetMemberByCardAsync_AmbiguousAcrossReferenceAndCardCode_ThrowsValidation()
+    {
+        await using var dbContext = CreateDbContext();
+        var seed = await SeedScenarioAsync(dbContext);
+
+        dbContext.MemberProfiles.Add(new MemberProfileEntity
+        {
+            Id = Guid.Parse("11111111-1111-1111-1111-111111111298"),
+            UserId = "member-user-conflict",
+            DisplayName = "Conflicting Card Member",
+            Email = "conflict@example.com",
+            MobileNumber = null,
+            PublicMemberReference = "LBM-CONFLICT",
+            CardCode = "LBM-TEST",
+            Status = "Active",
+            PointsBalance = 100,
+            MarketingConsent = true,
+            EmailUpdatesPreference = true,
+            LocalOffersPreference = true,
+            CardReminderPreference = true,
+            CreatedUtc = DateTimeOffset.UtcNow,
+            UpdatedUtc = DateTimeOffset.UtcNow,
+        });
+        await dbContext.SaveChangesAsync();
+
+        var service = new LoveBrackleyService(dbContext);
+
+        var exception = await Assert.ThrowsAsync<ValidationException>(() =>
+            service.GetMemberByCardAsync(seed.BusinessId, "LBM-TEST", CancellationToken.None));
+
+        Assert.Contains(exception.Errors, error => error.PropertyName == "identifier" && error.ErrorMessage.Contains("Ambiguous"));
+    }
+
     private static ApplicationDbContext CreateDbContext()
     {
         var options = new DbContextOptionsBuilder<ApplicationDbContext>()

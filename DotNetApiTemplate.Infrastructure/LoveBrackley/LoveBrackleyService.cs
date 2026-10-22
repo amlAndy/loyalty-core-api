@@ -422,9 +422,28 @@ public sealed class LoveBrackleyService : IMemberLoyaltyService, ILoveBrackleyLo
             return null;
         }
 
-        var member = await _dbContext.MemberProfiles.AsNoTracking()
-            .SingleOrDefaultAsync(candidate => candidate.CardCode == cardCode || candidate.LoyaltyCards.Any(card => card.CardCode == cardCode), cancellationToken);
-        return member is null ? null : await ToBusinessMemberDetailAsync(businessId, member, cancellationToken);
+        var matchingMembers = await _dbContext.MemberProfiles
+            .AsNoTracking()
+            .Where(candidate =>
+                candidate.CardCode == cardCode
+                || candidate.PublicMemberReference == cardCode
+                || candidate.LoyaltyCards.Any(card => card.CardCode == cardCode))
+            .Take(2)
+            .ToListAsync(cancellationToken);
+
+        if (matchingMembers.Count == 0)
+        {
+            return null;
+        }
+
+        if (matchingMembers.Count > 1)
+        {
+            throw new ValidationException([
+                new ValidationFailure("identifier", "Ambiguous member lookup identifier.")
+            ]);
+        }
+
+        return await ToBusinessMemberDetailAsync(businessId, matchingMembers[0], cancellationToken);
     }
 
     public async Task<LoyaltyTransactionDto?> EarnAsync(Guid businessId, EarnPointsRequest request, CancellationToken cancellationToken)

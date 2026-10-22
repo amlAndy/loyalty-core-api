@@ -72,8 +72,15 @@ public sealed class BusinessesController : ControllerBase
             return accessResult;
         }
 
-        var result = await _businessLoyaltyService.GetMemberByCardAsync(businessId, cardCode, cancellationToken);
-        return result is null ? NotFound() : Ok(new DataResponse<BusinessMemberDetailDto>(result));
+        try
+        {
+            var result = await _businessLoyaltyService.GetMemberByCardAsync(businessId, cardCode, cancellationToken);
+            return result is null ? NotFound() : Ok(new DataResponse<BusinessMemberDetailDto>(result));
+        }
+        catch (ValidationException exception)
+        {
+            return LoveBrackleyControllerHelpers.CreateValidationProblem(exception);
+        }
     }
 
     [HttpPost("{businessId:guid}/transactions/earn")]
