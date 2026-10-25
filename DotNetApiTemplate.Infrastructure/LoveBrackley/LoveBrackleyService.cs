@@ -792,16 +792,21 @@ public sealed class LoveBrackleyService : IMemberLoyaltyService, ILoveBrackleyLo
 
     public async Task<BusinessSettingsDto?> GetBusinessAsync(Guid businessId, CancellationToken cancellationToken) => await GetSettingsAsync(businessId, cancellationToken);
 
-    public async Task<BusinessSettingsDto?> UpdateBusinessAsync(Guid businessId, UpdateBusinessSettingsRequest request, string? actorUserId, CancellationToken cancellationToken)
+    public async Task<BusinessSettingsDto?> UpdateBusinessAsync(Guid businessId, AdminUpdateBusinessSettingsRequest request, string? actorUserId, CancellationToken cancellationToken)
     {
-        var result = await UpdateSettingsAsync(businessId, request, cancellationToken);
-        if (result is not null)
+        var business = await _dbContext.BusinessProfiles
+            .Include(candidate => candidate.TownLookup)
+            .Include(candidate => candidate.BusinessCategory)
+            .SingleOrDefaultAsync(candidate => candidate.Id == businessId, cancellationToken);
+        if (business is null)
         {
-            AddAdminAudit(actorUserId, "BusinessProfile", businessId.ToString(), "Update", $"Updated business {result.Name}.", null);
-            await _dbContext.SaveChangesAsync(cancellationToken);
+            return null;
         }
 
-        return result;
+        await ApplyAdminBusinessSettingsAsync(business, request, cancellationToken);
+        AddAdminAudit(actorUserId, "BusinessProfile", businessId.ToString(), "Update", $"Updated business {business.Name}.", null);
+        await _dbContext.SaveChangesAsync(cancellationToken);
+        return ToBusinessSettings(business);
     }
 
     public async Task<AdminBusinessDto?> SetBusinessStatusAsync(Guid businessId, string status, string action, string? actorUserId, CancellationToken cancellationToken)
@@ -1582,10 +1587,10 @@ public sealed class LoveBrackleyService : IMemberLoyaltyService, ILoveBrackleyLo
 
     private async Task ApplyBusinessSettingsAsync(BusinessProfileEntity business, UpdateBusinessSettingsRequest request, CancellationToken cancellationToken)
     {
-        var town = await ResolveTownAsync(request.Town, cancellationToken);
-        var category = await ResolveBusinessCategoryAsync(request.Category, cancellationToken);
+        var town = await ResolveTownAsync(request.Town, business.TownId, cancellationToken);
+        var category = await ResolveBusinessCategoryAsync(request.Category, business.BusinessCategoryId, cancellationToken);
         business.Name = request.Name.Trim();
-        business.Category = request.Category.Trim();
+        business.Category = category.Name;
         business.TownId = town.Id;
         business.BusinessCategoryId = category.Id;
         business.TownLookup = town;
@@ -1594,22 +1599,43 @@ public sealed class LoveBrackleyService : IMemberLoyaltyService, ILoveBrackleyLo
         business.LocationName = request.LocationName.Trim();
         business.AddressLine1 = request.AddressLine1.Trim();
         business.AddressLine2 = TrimToNull(request.AddressLine2);
-        business.Town = request.Town.Trim();
+        business.Town = town.DisplayName;
         business.Postcode = request.Postcode.Trim();
         business.ContactEmail = request.ContactEmail.Trim();
         business.SupportEmail = TrimToNull(request.SupportEmail);
         business.PrimaryContactName = request.PrimaryContactName.Trim();
         business.TradingHoursSummary = request.TradingHoursSummary.Trim();
-        business.Featured = request.Featured;
         business.UpdatedUtc = DateTimeOffset.UtcNow;
+    }
+
+    private async Task ApplyAdminBusinessSettingsAsync(BusinessProfileEntity business, AdminUpdateBusinessSettingsRequest request, CancellationToken cancellationToken)
+    {
+        await ApplyBusinessSettingsAsync(
+            business,
+            new UpdateBusinessSettingsRequest(
+                request.Name,
+                request.Category,
+                request.Description,
+                request.LocationName,
+                request.AddressLine1,
+                request.AddressLine2,
+                request.Town,
+                request.Postcode,
+                request.ContactEmail,
+                request.SupportEmail,
+                request.PrimaryContactName,
+                request.TradingHoursSummary),
+            cancellationToken);
+
+        business.Featured = request.Featured;
     }
 
     private async Task ApplyBusinessCreateFieldsAsync(BusinessProfileEntity business, CreateAdminBusinessRequest request, CancellationToken cancellationToken)
     {
-        var town = await ResolveTownAsync(request.Town, cancellationToken);
-        var category = await ResolveBusinessCategoryAsync(request.Category, cancellationToken);
+        var town = await ResolveTownAsync(request.Town, null, cancellationToken);
+        var category = await ResolveBusinessCategoryAsync(request.Category, null, cancellationToken);
         business.Name = request.Name.Trim();
-        business.Category = request.Category.Trim();
+        business.Category = category.Name;
         business.TownId = town.Id;
         business.BusinessCategoryId = category.Id;
         business.TownLookup = town;
@@ -1618,7 +1644,7 @@ public sealed class LoveBrackleyService : IMemberLoyaltyService, ILoveBrackleyLo
         business.LocationName = request.LocationName.Trim();
         business.AddressLine1 = request.AddressLine1.Trim();
         business.AddressLine2 = TrimToNull(request.AddressLine2);
-        business.Town = request.Town.Trim();
+        business.Town = town.DisplayName;
         business.Postcode = request.Postcode.Trim();
         business.ContactEmail = request.ContactEmail.Trim();
         business.SupportEmail = TrimToNull(request.SupportEmail);
@@ -1627,27 +1653,38 @@ public sealed class LoveBrackleyService : IMemberLoyaltyService, ILoveBrackleyLo
         business.Featured = request.Featured;
     }
 
-    private async Task<TownEntity> ResolveTownAsync(string? value, CancellationToken cancellationToken)
+    private async Task<TownEntity> ResolveTownAsync(string? value, Guid? existingTownId, CancellationToken cancellationToken)
     {
         var trimmed = value?.Trim();
         var slug = ToSlug(trimmed ?? string.Empty);
-        var town = await _dbContext.Towns
-            .FirstOrDefaultAsync(candidate => candidate.Slug == slug || candidate.Name == trimmed || candidate.DisplayName == trimmed, cancellationToken)
-            ?? await _dbContext.Towns.FirstOrDefaultAsync(candidate => candidate.Slug == "brackley", cancellationToken)
-            ?? await _dbContext.Towns.OrderBy(candidate => candidate.DisplayOrder).ThenBy(candidate => candidate.Name).FirstOrDefaultAsync(cancellationToken);
+        var candidates = await _dbContext.Towns
+            .Where(candidate => candidate.IsActive || (existingTownId.HasValue && candidate.Id == existingTownId.Value))
+            .Where(candidate => candidate.Slug == slug || candidate.Name == trimmed || candidate.DisplayName == trimmed)
+            .ToListAsync(cancellationToken);
 
-        return town ?? throw new ValidationException([new ValidationFailure("town", "A valid town is required.")]);
+        return candidates.Count switch
+        {
+            1 => candidates[0],
+            > 1 => throw new ValidationException([new ValidationFailure("town", "Town selection is ambiguous. Select by slug or unique display name.")]),
+            _ => throw new ValidationException([new ValidationFailure("town", "A valid town is required.")])
+        };
     }
 
-    private async Task<BusinessCategoryEntity> ResolveBusinessCategoryAsync(string? value, CancellationToken cancellationToken)
+    private async Task<BusinessCategoryEntity> ResolveBusinessCategoryAsync(string? value, Guid? existingCategoryId, CancellationToken cancellationToken)
     {
         var trimmed = value?.Trim();
         var slug = ToSlug(trimmed ?? string.Empty);
-        var category = await _dbContext.BusinessCategories
-            .FirstOrDefaultAsync(candidate => candidate.Slug == slug || candidate.Name == trimmed, cancellationToken)
-            ?? await _dbContext.BusinessCategories.OrderBy(candidate => candidate.DisplayOrder).ThenBy(candidate => candidate.Name).FirstOrDefaultAsync(cancellationToken);
+        var candidates = await _dbContext.BusinessCategories
+            .Where(candidate => candidate.IsActive || (existingCategoryId.HasValue && candidate.Id == existingCategoryId.Value))
+            .Where(candidate => candidate.Slug == slug || candidate.Name == trimmed)
+            .ToListAsync(cancellationToken);
 
-        return category ?? throw new ValidationException([new ValidationFailure("category", "A valid business category is required.")]);
+        return candidates.Count switch
+        {
+            1 => candidates[0],
+            > 1 => throw new ValidationException([new ValidationFailure("category", "Business category selection is ambiguous. Select by slug or unique name.")]),
+            _ => throw new ValidationException([new ValidationFailure("category", "A valid business category is required.")])
+        };
     }
 
     private const string ReviewAuditEntityType = AuditEntityTypes.Review;

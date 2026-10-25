@@ -117,7 +117,7 @@ public sealed class AdminApiAuthorizationMatrixTests
             TradingHoursSummary: "9-5",
             Featured: true), AdminPermissionPolicies.AdminConfigure, HttpStatusCode.OK)];
         yield return [new RouteMatrixCase("Business detail", HttpMethod.Get, "/api/admin/businesses/00000000-0000-0000-0000-000000000001", null, AdminPermissionPolicies.AdminView, HttpStatusCode.OK)];
-        yield return [new RouteMatrixCase("Business update", HttpMethod.Put, "/api/admin/businesses/00000000-0000-0000-0000-000000000001", new UpdateBusinessSettingsRequest(
+        yield return [new RouteMatrixCase("Business update", HttpMethod.Put, "/api/admin/businesses/00000000-0000-0000-0000-000000000001", new AdminUpdateBusinessSettingsRequest(
             Name: "Green Pantry",
             Category: "Retail",
             Description: "Community shop",

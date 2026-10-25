@@ -52,7 +52,7 @@ public interface IAdminLoveBrackleyService
     Task<PagedResponse<AdminBusinessDto>> SearchBusinessesAsync(string? searchTerm, string? status, int page, int pageSize, CancellationToken cancellationToken);
     Task<AdminBusinessDto?> CreateBusinessAsync(CreateAdminBusinessRequest request, string? actorUserId, CancellationToken cancellationToken);
     Task<BusinessSettingsDto?> GetBusinessAsync(Guid businessId, CancellationToken cancellationToken);
-    Task<BusinessSettingsDto?> UpdateBusinessAsync(Guid businessId, UpdateBusinessSettingsRequest request, string? actorUserId, CancellationToken cancellationToken);
+    Task<BusinessSettingsDto?> UpdateBusinessAsync(Guid businessId, AdminUpdateBusinessSettingsRequest request, string? actorUserId, CancellationToken cancellationToken);
     Task<AdminBusinessDto?> SetBusinessStatusAsync(Guid businessId, string status, string action, string? actorUserId, CancellationToken cancellationToken);
     Task<PagedResponse<AdminMemberDto>> SearchMembersAsync(string? searchTerm, string? status, int page, int pageSize, CancellationToken cancellationToken);
     Task<AdminMemberDto?> CreateMemberAsync(CreateAdminMemberRequest request, CancellationToken cancellationToken);

@@ -260,6 +260,20 @@ public sealed record UpdateBusinessSettingsRequest(
     string ContactEmail,
     string? SupportEmail,
     string PrimaryContactName,
+    string TradingHoursSummary);
+
+public sealed record AdminUpdateBusinessSettingsRequest(
+    string Name,
+    string Category,
+    string Description,
+    string LocationName,
+    string AddressLine1,
+    string? AddressLine2,
+    string Town,
+    string Postcode,
+    string ContactEmail,
+    string? SupportEmail,
+    string PrimaryContactName,
     string TradingHoursSummary,
     bool Featured);
 

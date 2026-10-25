@@ -51,7 +51,7 @@ public sealed class LoveBrackleyAdminController : ControllerBase
 
     [Authorize(Policy = AdminPermissionPolicies.AdminConfigure)]
     [HttpPut("businesses/{businessId:guid}")]
-    public async Task<ActionResult<DataResponse<BusinessSettingsDto>>> UpdateBusiness(Guid businessId, [FromBody] UpdateBusinessSettingsRequest request, CancellationToken cancellationToken)
+    public async Task<ActionResult<DataResponse<BusinessSettingsDto>>> UpdateBusiness(Guid businessId, [FromBody] AdminUpdateBusinessSettingsRequest request, CancellationToken cancellationToken)
     {
         var result = await _adminService.UpdateBusinessAsync(businessId, request, User.GetCurrentUserId(), cancellationToken);
         return result is null ? NotFound() : Ok(new DataResponse<BusinessSettingsDto>(result));

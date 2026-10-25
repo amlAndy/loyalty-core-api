@@ -428,7 +428,7 @@ internal sealed class FakeAdminLoveBrackleyService : IAdminLoveBrackleyService
         return Task.FromResult<BusinessSettingsDto?>(CreateBusinessSettings(businessId));
     }
 
-    public Task<BusinessSettingsDto?> UpdateBusinessAsync(Guid businessId, UpdateBusinessSettingsRequest request, string? actorUserId, CancellationToken cancellationToken)
+    public Task<BusinessSettingsDto?> UpdateBusinessAsync(Guid businessId, AdminUpdateBusinessSettingsRequest request, string? actorUserId, CancellationToken cancellationToken)
     {
         return Task.FromResult<BusinessSettingsDto?>(CreateBusinessSettings(businessId, request.Name));
     }
